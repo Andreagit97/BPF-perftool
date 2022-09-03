@@ -7,28 +7,16 @@
 #include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <signal.h>
 #include "stats.skel.h"
 #include "stats.h"
 
-/* OPTIONS */
-#define BPF_OPTION "--bpf"
-#define MODERN_BPF_OPTION "--modern_bpf"
-
-#define NUM_SYSCALL_OPTION "--num_syscall"
-#define NUM_EVENTS_OPTION "--num_events"
-#define TP_OPTION "--tp"
-#define PPM_SC_OPTION "--ppm_sc"
-
 #define VERBOSE_OPTION "--verbose"
 #define TARGET_SYSCALL "--syscall_id"
-// #define MAX_EVENT_NUM "--max_events"
 #define SCAP_OPEN_ARGS "--args"
-
-/* These are the events after which we stop the `scap-open`. */
-#define MAX_EVENT_NUM "--max_events"
+#define HELP_OPTION "--help"
 
 #define PATH_SCAP_OPEN_EXE "../scap-open/scap-open"
-#define PATH_PROBE_ELF "../scap-open/probe.o"
 
 static int setup_libbpf_print_verbose(enum libbpf_print_level level,
 				      const char *format, va_list args)
@@ -49,17 +37,34 @@ static int setup_libbpf_print_no_verbose(enum libbpf_print_level level,
 int syscall_id = -1;
 bool verbose = false;
 int scap_open_args_index = -1;
+bool killed = false;
+int pid = 0; /* this pid will be used by the signal handler to kill the scap-open in case it is still running */
 
-/// TODO: still to update!!
 void print_help()
 {
 	printf("\n----------------------- MENU -----------------------\n");
-	printf("------> Arguments:");
-	printf("'%s: enable the BPF probe.\n", BPF_OPTION);
-	printf("'%s': enable modern BPF probe.\n", MODERN_BPF_OPTION);
+	printf("------> Arguments:\n");
 	printf("'%s': verbose mode in case of issues.\n", VERBOSE_OPTION);
-	printf("'%s <num_syscall>': syscall to capture (this must be the system syscall code).\n", NUM_SYSCALL_OPTION);
+	printf("'%s <num_syscall>': syscall to capture (this must be the system syscall code).\n", TARGET_SYSCALL);
+	printf("'%s <scap_open_args>': all the arguments after '%s' are directly passed to the scap-open, so the CLI interface is the same.\n", SCAP_OPEN_ARGS, SCAP_OPEN_ARGS);
+	printf("'%s': print this menu.\n", HELP_OPTION);
 	printf("-----------------------------------------------------\n");
+}
+
+static void clean(void)
+{
+	/* If scap-open is still running and the call is not failed */
+	if(killed == false && pid != -1)
+	{
+		kill(pid, 2);
+		printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
+	}
+}
+
+static void signal_callback(int signal)
+{
+	clean();
+	exit(EXIT_SUCCESS);
 }
 
 void parse_CLI_options(int argc, char **argv)
@@ -79,6 +84,12 @@ void parse_CLI_options(int argc, char **argv)
 				exit(EXIT_FAILURE);
 			}
 			syscall_id = strtoul(argv[++i], NULL, 10);
+		}
+
+		if(!strcmp(argv[i], HELP_OPTION))
+		{
+			print_help();
+			exit(EXIT_SUCCESS);
 		}
 
 		if(!strcmp(argv[i], SCAP_OPEN_ARGS))
@@ -104,6 +115,12 @@ int main(int argc, char **argv)
 {
 	struct stats_bpf *skel = NULL;
 	int err = 0;
+
+	if(signal(SIGINT, signal_callback) == SIG_ERR)
+	{
+		fprintf(stderr, "An error occurred while setting SIGINT signal handler.\n");
+		return EXIT_FAILURE;
+	}
 
 	parse_CLI_options(argc, argv);
 
@@ -145,7 +162,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Here we need to load the `scap-open` executable. */
-	int pid = fork();
+	pid = fork();
 	if(pid == 0)
 	{
 		execve(PATH_SCAP_OPEN_EXE, &(argv[scap_open_args_index]), NULL);
@@ -153,24 +170,23 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	/* Check for a map loaded by the scap-open to be sure that the child already
-	 * loaded the scap-open program. We need to attach the `sys_exit` tracepoint only after
-	 * the `scap-open` attaches its one.
+	/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
+	 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
 	 */
 	int attempts = 3;
 	while(true)
 	{
 		sleep(2);
-		err = system("sudo bpftool map show | grep -q scap-open");
+		err = system("sudo bpftool prog show | grep -q sys_exit");
 		if(err != 0)
 		{
 			if(attempts == 1)
 			{
-				fprintf(stderr, "The `scap-open` exe is not loaded!\n");
+				fprintf(stderr, "[PERTOOL]: The `scap-open` exe is not loaded!\n");
 				goto cleanup;
 			}
 			attempts--;
-			printf("no `scap-open` retry\n");
+			printf("[PERTOOL]: no `scap-open` retry\n");
 		}
 		else
 		{
@@ -178,7 +194,6 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
-	sleep(1);
 
 	/* Attach the `sys_exit` tracepoint after the scap-open. */
 	skel->links.exit_point = bpf_program__attach(skel->progs.exit_point);
@@ -197,6 +212,7 @@ int main(int argc, char **argv)
 		{
 			if(kill(pid, 2) != -1)
 			{
+				killed = true;
 				printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
 				break;
 			}
@@ -220,6 +236,7 @@ int main(int argc, char **argv)
 	printf("\n----------------------------------\n\n");
 
 cleanup:
+	clean();
 	stats_bpf__destroy(skel);
 	return -err;
 }
