@@ -1,7 +1,8 @@
 .vscode
 
 /build
-/templates/build
-/templates/.output
+/src/build
+/src/.output
 /scap-open/*
-/tests/syscall_generator
+/stress-tester/syscall_generator
+/stress-tester/exp

@@ -6,13 +6,11 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
-/* `LIMIT` is used to please the verifier */
-#define LIMIT MAX_SAMPLES - 1
-
 /* This is the id of the syscall we want to match */
 uint32_t target_syscall_id = 0;
-uint64_t samples[MAX_SAMPLES] = {0};
 uint32_t counter = 0;
+uint64_t sum = 0;
+uint64_t enter_time = 0;
 
 struct sys_enter_args
 {
@@ -49,13 +47,13 @@ int starting_point(struct sys_enter_args *ctx)
 		return 0;
 	}
 
-	/* We need to stop the collection if we reach the maximum size, otherwise we overwrite data. */
+	/* We need to stop the collection if we reach the maximum number of samples. */
 	if(counter >= MAX_SAMPLES)
 	{
 		return 0;
 	}
 
-	samples[counter & LIMIT] = bpf_ktime_get_boot_ns();
+	enter_time = bpf_ktime_get_boot_ns();
 	return 0;
 }
 
@@ -83,14 +81,13 @@ int exit_point(struct sys_exit_args *ctx)
 		return 0;
 	}
 
-	/* We need to stop the collection if we reach the maximum size, otherwise we overwrite data. */
+	/* We need to stop the collection if we reach the maximum number of samples. */
 	if(counter >= MAX_SAMPLES)
 	{
 		return 0;
 	}
 
-	u64 enter_time = samples[counter & LIMIT];
-	samples[counter & LIMIT] = bpf_ktime_get_boot_ns() - enter_time;
+	sum += (bpf_ktime_get_boot_ns() - enter_time);
 	counter++;
 	return 0;
 }

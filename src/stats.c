@@ -50,6 +50,7 @@ int syscall_id = -1;
 bool verbose = false;
 int scap_open_args_index = -1;
 
+/// TODO: still to update!!
 void print_help()
 {
 	printf("\n----------------------- MENU -----------------------\n");
@@ -190,12 +191,14 @@ int main(int argc, char **argv)
 	/* wait until we reach the number of samples and kill the scap-open. */
 	while(1)
 	{
+		// printf("polled: %d\n", skel->bss->counter);
 		sleep(3);
 		if(skel->bss->counter == MAX_SAMPLES)
 		{
-			if(kill(pid, 9) != -1)
+			if(kill(pid, 2) != -1)
 			{
 				printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
+				break;
 			}
 			else
 			{
@@ -206,17 +209,11 @@ int main(int argc, char **argv)
 	}
 
 	/* Collect stats. */
-	printf("\n---------> Start collection phase!\n\n");
+	printf("\n---------> Print results!\n\n");
 
-	uint64_t sum = 0;
-	for(int i = 0; i < skel->bss->counter; i++)
-	{
-		// printf("sample '%d': %lu ns\n", i, skel->bss->samples[i]);
-		sum += skel->bss->samples[i];
-	}
 	if(skel->bss->counter != 0)
 	{
-		printf("avarage: %lu ns\n", sum / skel->bss->counter);
+		printf("avarage: %lu ns\n", skel->bss->sum / skel->bss->counter);
 	}
 	printf("samples: %d\n", skel->bss->counter);
 
