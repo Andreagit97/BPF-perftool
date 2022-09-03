@@ -1,0 +1,7 @@
+.vscode
+
+/build
+/templates/build
+/templates/.output
+/scap-open/*
+/tests/syscall_generator
