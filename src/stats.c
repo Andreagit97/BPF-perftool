@@ -17,6 +17,7 @@
 #define HELP_OPTION "--help"
 
 #define PATH_SCAP_OPEN_EXE "../scap-open/scap-open"
+#define PATH_SYS_GEN_EXE "../stress-tester/syscall_generator"
 
 static int setup_libbpf_print_verbose(enum libbpf_print_level level,
 				      const char *format, va_list args)
@@ -34,11 +35,14 @@ static int setup_libbpf_print_no_verbose(enum libbpf_print_level level,
 	return 0;
 }
 
+struct stats_bpf *skel = NULL;
 int syscall_id = -1;
 bool verbose = false;
 int scap_open_args_index = -1;
-bool killed = false;
-int pid = 0; /* this pid will be used by the signal handler to kill the scap-open in case it is still running */
+bool scap_open_killed = false;
+int scap_open_pid = -1; /* this scap_open_pid will be used by the signal handler to kill the scap-open in case it is still running */
+bool syscall_generator_killed = false;
+int syscall_generator_pid = -1;
 
 void print_help()
 {
@@ -54,11 +58,19 @@ void print_help()
 static void clean(void)
 {
 	/* If scap-open is still running and the call is not failed */
-	if(killed == false && pid != -1)
+	if(scap_open_killed == false && scap_open_pid != -1)
 	{
-		kill(pid, 2);
+		kill(scap_open_pid, 2); /* Send a SIGINT. */
 		printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
 	}
+
+	/* If syscall-generator is still running and the call is not failed */
+	if(syscall_generator_killed == false && syscall_generator_pid != -1)
+	{
+		kill(syscall_generator_pid, 2); /* Send a SIGINT. */
+		printf("\n[PERTOOL]: `syscall_generator` correctly killed!\n");
+	}
+	stats_bpf__destroy(skel);
 }
 
 static void signal_callback(int signal)
@@ -113,7 +125,6 @@ void parse_CLI_options(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	struct stats_bpf *skel = NULL;
 	int err = 0;
 
 	if(signal(SIGINT, signal_callback) == SIG_ERR)
@@ -143,7 +154,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	skel->bss->target_syscall_id = (uint32_t)syscall_id;
+	skel->data->target_syscall_id = (uint32_t)syscall_id;
 
 	/* Load & verify BPF programs */
 	err = stats_bpf__load(skel);
@@ -162,12 +173,17 @@ int main(int argc, char **argv)
 	}
 
 	/* Here we need to load the `scap-open` executable. */
-	pid = fork();
-	if(pid == 0)
+	scap_open_pid = fork();
+	if(scap_open_pid == 0)
 	{
 		execve(PATH_SCAP_OPEN_EXE, &(argv[scap_open_args_index]), NULL);
 		fprintf(stderr, "Failed to exec `scap-open`: (%d, %s)\n", errno, strerror(errno));
 		exit(EXIT_FAILURE);
+	}
+	if(scap_open_pid == -1)
+	{
+		fprintf(stderr, "Failed to fork into `scap-open`: (%d, %s)\n", errno, strerror(errno));
+		goto cleanup;
 	}
 
 	/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
@@ -203,6 +219,24 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 
+	/* Start the syscall generator... */
+	char syscall_id_string[5];
+	sprintf(syscall_id_string, "%d", syscall_id);
+	char *argv_execve[] = {PATH_SYS_GEN_EXE, syscall_id_string, NULL};
+	syscall_generator_pid = fork();
+	if(syscall_generator_pid == 0)
+	{
+		execve(PATH_SYS_GEN_EXE, argv_execve, NULL);
+		fprintf(stderr, "Failed to exec `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if(syscall_generator_pid == -1)
+	{
+		fprintf(stderr, "Failed to fork into `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
+		goto cleanup;
+	}
+	skel->data->target_pid = (uint32_t)syscall_generator_pid;
+
 	/* wait until we reach the number of samples and kill the scap-open. */
 	while(1)
 	{
@@ -210,19 +244,32 @@ int main(int argc, char **argv)
 		sleep(3);
 		if(skel->bss->counter == MAX_SAMPLES)
 		{
-			if(kill(pid, 2) != -1)
+			if(kill(scap_open_pid, 2) != -1)
 			{
-				killed = true;
+				scap_open_killed = true;
 				printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
 				break;
 			}
 			else
 			{
 				printf("\n[PERTOOL]: `scap-open` not correctly killed! Terminate the program\n");
-				exit(EXIT_FAILURE);
+				goto cleanup;
+			}
+
+			if(kill(syscall_generator_pid, 2) != -1)
+			{
+				syscall_generator_killed = true;
+				printf("\n[PERTOOL]: `syscall-generator` correctly killed!\n");
+				break;
+			}
+			else
+			{
+				printf("\n[PERTOOL]: `syscall-generator` not correctly killed! Terminate the program\n");
+				goto cleanup;
 			}
 		}
 	}
+	sleep(1); /* Leave one second to avoid overlapping print. */
 
 	/* Collect stats. */
 	printf("\n---------> Print results!\n\n");
@@ -237,6 +284,5 @@ int main(int argc, char **argv)
 
 cleanup:
 	clean();
-	stats_bpf__destroy(skel);
 	return -err;
 }

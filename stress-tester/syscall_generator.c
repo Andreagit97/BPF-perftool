@@ -16,7 +16,7 @@
 
 static void signal_callback(int signal)
 {
-	printf("\nEnd generation! Bye!\n");
+	printf("\n[SYS-GEN]: End generation! Bye!\n");
 	exit(EXIT_SUCCESS);
 }
 
@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 {
 	if(argc != 2)
 	{
-		fprintf(stderr, "You must pass the syscall to generate! (Example: ./syscall_generator 3)\n");
+		fprintf(stderr, "[SYS-GEN]: You must pass the syscall to generate! (Example: ./syscall_generator 3)\n");
 		return EXIT_FAILURE;
 	}
 
@@ -32,22 +32,29 @@ int main(int argc, char *argv[])
 
 	if(signal(SIGINT, signal_callback) == SIG_ERR)
 	{
-		fprintf(stderr, "An error occurred while setting SIGINT signal handler.\n");
+		fprintf(stderr, "[SYS-GEN]: An error occurred while setting SIGINT signal handler.\n");
 		return EXIT_FAILURE;
 	}
 
 	switch(syscall_id)
 	{
 	case __NR_open:
-		printf("Start generating 'open' syscall!\n");
+		printf("[SYS-GEN]: Start generating 'open' syscall!\n");
 		while(1)
 		{
 			syscall(__NR_open, "tmp", 0);
 		}
 		break;
 
+	case __NR_execveat:
+		printf("[SYS-GEN]: Start generating 'execveat' syscall!\n");
+		while(1)
+		{
+			syscall(__NR_execveat, 0, "null", NULL, NULL, 0);
+		}
+
 	default:
-		printf("Syscall not supported!\n");
+		printf("[SYS-GEN]: Syscall not supported!\n");
 		break;
 	}
 

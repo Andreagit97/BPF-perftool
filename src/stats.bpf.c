@@ -7,7 +7,8 @@
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
 /* This is the id of the syscall we want to match */
-uint32_t target_syscall_id = 0;
+int32_t target_syscall_id = -1;
+int32_t target_pid = -1;
 uint32_t counter = 0;
 uint64_t sum = 0;
 uint64_t enter_time = 0;
@@ -42,7 +43,7 @@ int starting_point(struct sys_enter_args *ctx)
 	}
 
 	/* Check this is our test prog. */
-	if(__builtin_memcmp(comm, "exp\0", 4) != 0)
+	if(target_pid != (bpf_get_current_pid_tgid() & 0xffffffff))
 	{
 		return 0;
 	}
@@ -76,7 +77,7 @@ int exit_point(struct sys_exit_args *ctx)
 	}
 
 	/* Check this is our test prog. */
-	if(__builtin_memcmp(comm, "exp\0", 4) != 0)
+	if(target_pid != (bpf_get_current_pid_tgid() & 0xffffffff))
 	{
 		return 0;
 	}

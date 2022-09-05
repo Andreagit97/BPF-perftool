@@ -62,3 +62,17 @@ sudo ./stats --syscall_id 2 --args --bpf ../scap-open/probe.o --tp 0 --tp 1 --pp
 ```
 
 With you can `sudo ./stats --help` see the menu.
+
+## Bpftool
+
+Enable stats:
+
+```bash
+sudo sysctl -w kernel.bpf_stats_enabled=1
+```
+
+Check stats during execution:
+
+```bash
+sudo bpftool prog show | grep <sys-e>
+```
