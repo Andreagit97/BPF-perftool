@@ -16,7 +16,7 @@
 
 static void signal_callback(int signal)
 {
-	printf("\n[SYS-GEN]: End generation! Bye!\n");
+	printf("[SYS-GEN]: End generation! Bye!\n");
 	exit(EXIT_SUCCESS);
 }
 

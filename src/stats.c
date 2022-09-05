@@ -64,14 +64,14 @@ static void clean(void)
 	if(scap_open_killed == false && scap_open_pid != -1)
 	{
 		kill(scap_open_pid, 2); /* Send a SIGINT. */
-		printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
+		printf("[PERTOOL]: `scap-open` correctly killed!\n");
 	}
 
 	/* If syscall-generator is still running and the call is not failed */
 	if(syscall_generator_killed == false && syscall_generator_pid != -1)
 	{
 		kill(syscall_generator_pid, 2); /* Send a SIGINT. */
-		printf("\n[PERTOOL]: `syscall_generator` correctly killed!\n");
+		printf("[PERTOOL]: `syscall_generator` correctly killed!\n");
 	}
 	stats_bpf__destroy(skel);
 }
@@ -95,7 +95,7 @@ void parse_CLI_options(int argc, char **argv)
 		{
 			if(!(i + 1 < argc))
 			{
-				printf("\nYou need to specify also the number of the syscall! Bye!\n");
+				printf("[PERTOOL]: You need to specify also the number of the syscall! Bye!\n");
 				exit(EXIT_FAILURE);
 			}
 			syscall_id = strtoul(argv[++i], NULL, 10);
@@ -111,7 +111,7 @@ void parse_CLI_options(int argc, char **argv)
 		{
 			if(!(i + 1 < argc))
 			{
-				printf("\nYou need to specify also the number of samples! Bye!\n");
+				printf("[PERTOOL]: You need to specify also the number of samples! Bye!\n");
 				exit(EXIT_FAILURE);
 			}
 			max_samples = strtoul(argv[++i], NULL, 10);
@@ -125,13 +125,7 @@ void parse_CLI_options(int argc, char **argv)
 
 	if(syscall_id == -1)
 	{
-		printf("\n Target syscall not specified! Bye!\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if(scap_open_args_index == -1)
-	{
-		printf("\n scpa-open args not passed! Bye!\n");
+		printf("[PERTOOL]: Target syscall not specified! Bye!\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -142,7 +136,7 @@ int main(int argc, char **argv)
 
 	if(signal(SIGINT, signal_callback) == SIG_ERR)
 	{
-		fprintf(stderr, "An error occurred while setting SIGINT signal handler.\n");
+		fprintf(stderr, "[PERTOOL]: An error occurred while setting SIGINT signal handler.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -163,7 +157,7 @@ int main(int argc, char **argv)
 	skel = stats_bpf__open();
 	if(!skel)
 	{
-		fprintf(stderr, "Failed to open BPF skeleton\n");
+		fprintf(stderr, "[PERTOOL]: Failed to open BPF skeleton\n");
 		return 1;
 	}
 
@@ -174,7 +168,7 @@ int main(int argc, char **argv)
 	err = stats_bpf__load(skel);
 	if(err)
 	{
-		fprintf(stderr, "Failed to load and verify BPF skeleton\n");
+		fprintf(stderr, "[PERTOOL]: Failed to load and verify BPF skeleton\n");
 		goto cleanup;
 	}
 
@@ -182,58 +176,67 @@ int main(int argc, char **argv)
 	skel->links.starting_point = bpf_program__attach(skel->progs.starting_point);
 	if(!skel->links.starting_point)
 	{
-		fprintf(stderr, "Failed to attach the `starting_point` prog\n");
+		fprintf(stderr, "[PERTOOL]: Failed to attach the `starting_point` prog\n");
 		goto cleanup;
 	}
 
-	/* Here we need to load the `scap-open` executable. */
-	scap_open_pid = fork();
-	if(scap_open_pid == 0)
+	/* Attach the scap-open only if it is necessary */
+	if(scap_open_args_index != -1)
 	{
-		execve(PATH_SCAP_OPEN_EXE, &(argv[scap_open_args_index]), NULL);
-		fprintf(stderr, "Failed to exec `scap-open`: (%d, %s)\n", errno, strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-	if(scap_open_pid == -1)
-	{
-		fprintf(stderr, "Failed to fork into `scap-open`: (%d, %s)\n", errno, strerror(errno));
-		goto cleanup;
-	}
-
-	/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
-	 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
-	 */
-	int attempts = 3;
-	while(true)
-	{
-		sleep(2);
-		err = system("sudo bpftool prog show | grep -q sys_exit");
-		if(err != 0)
+		/* Here we need to load the `scap-open` executable. */
+		scap_open_pid = fork();
+		if(scap_open_pid == 0)
 		{
-			if(attempts == 1)
+			execve(PATH_SCAP_OPEN_EXE, &(argv[scap_open_args_index]), NULL);
+			fprintf(stderr, "[PERTOOL]: Failed to exec `scap-open`: (%d, %s)\n", errno, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+		if(scap_open_pid == -1)
+		{
+			fprintf(stderr, "[PERTOOL]: Failed to fork into `scap-open`: (%d, %s)\n", errno, strerror(errno));
+			goto cleanup;
+		}
+
+		/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
+		 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
+		 */
+		int attempts = 3;
+		while(true)
+		{
+			sleep(2);
+			err = system("sudo bpftool prog show | grep -q sys_exit");
+			if(err != 0)
 			{
-				fprintf(stderr, "[PERTOOL]: The `scap-open` exe is not loaded!\n");
-				goto cleanup;
+				if(attempts == 1)
+				{
+					fprintf(stderr, "[PERTOOL]: The `scap-open` exe is not loaded!\n");
+					goto cleanup;
+				}
+				attempts--;
+				printf("[PERTOOL]: no `scap-open` retry\n");
 			}
-			attempts--;
-			printf("[PERTOOL]: no `scap-open` retry\n");
+			else
+			{
+				printf("[PERTOOL]: `scap-open` correctly loaded!\n");
+				break;
+			}
 		}
-		else
-		{
-			printf("\n[PERTOOL]: `scap-open` correctly loaded!\n");
-			break;
-		}
+	}
+	else
+	{
+		printf("[PERTOOL]: No need to load the `scap-open`!\n");
 	}
 
 	/* Attach the `sys_exit` tracepoint after the scap-open. */
 	skel->links.exit_point = bpf_program__attach(skel->progs.exit_point);
 	if(!skel->links.exit_point)
 	{
-		fprintf(stderr, "Failed to attach the `exit_point` prog\n");
+		fprintf(stderr, "[PERTOOL]: Failed to attach the `exit_point` prog\n");
 		goto cleanup;
 	}
 
 	/* Start the syscall generator... */
+	printf("[PERTOOL]: Try to inject 'syscall-generator'!\n");
 	char syscall_id_string[5];
 	sprintf(syscall_id_string, "%d", syscall_id);
 	char *argv_execve[] = {PATH_SYS_GEN_EXE, syscall_id_string, NULL};
@@ -241,12 +244,12 @@ int main(int argc, char **argv)
 	if(syscall_generator_pid == 0)
 	{
 		execve(PATH_SYS_GEN_EXE, argv_execve, NULL);
-		fprintf(stderr, "Failed to exec `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
+		fprintf(stderr, "[PERTOOL]: Failed to exec `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 	if(syscall_generator_pid == -1)
 	{
-		fprintf(stderr, "Failed to fork into `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
+		fprintf(stderr, "[PERTOOL]: Failed to fork into `syscall-generator`: (%d, %s)\n", errno, strerror(errno));
 		goto cleanup;
 	}
 	skel->data->target_pid = (uint32_t)syscall_generator_pid;
@@ -258,27 +261,31 @@ int main(int argc, char **argv)
 		sleep(3);
 		if(skel->bss->counter == max_samples)
 		{
-			if(kill(scap_open_pid, 2) != -1)
+			/* Remove the scap-open only if it was injected. */
+			if(scap_open_args_index != -1)
 			{
-				scap_open_killed = true;
-				printf("\n[PERTOOL]: `scap-open` correctly killed!\n");
-				break;
-			}
-			else
-			{
-				printf("\n[PERTOOL]: `scap-open` not correctly killed! Terminate the program\n");
-				goto cleanup;
+				if(kill(scap_open_pid, 2) != -1)
+				{
+					scap_open_killed = true;
+					printf("[PERTOOL]: `scap-open` correctly killed!\n");
+					break;
+				}
+				else
+				{
+					printf("[PERTOOL]: `scap-open` not correctly killed! Terminate the program\n");
+					goto cleanup;
+				}
 			}
 
 			if(kill(syscall_generator_pid, 2) != -1)
 			{
 				syscall_generator_killed = true;
-				printf("\n[PERTOOL]: `syscall-generator` correctly killed!\n");
+				printf("[PERTOOL]: `syscall-generator` correctly killed!\n");
 				break;
 			}
 			else
 			{
-				printf("\n[PERTOOL]: `syscall-generator` not correctly killed! Terminate the program\n");
+				printf("[PERTOOL]: `syscall-generator` not correctly killed! Terminate the program\n");
 				goto cleanup;
 			}
 		}
