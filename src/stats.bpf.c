@@ -6,8 +6,12 @@
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
 
+uint64_t max_samples_to_catch = 0;
+
 /* This is the id of the syscall we want to match */
 int32_t target_syscall_id = -1;
+
+/* This is the pid of our syscall generator */
 int32_t target_pid = -1;
 uint32_t counter = 0;
 uint64_t sum = 0;
@@ -49,7 +53,7 @@ int starting_point(struct sys_enter_args *ctx)
 	}
 
 	/* We need to stop the collection if we reach the maximum number of samples. */
-	if(counter >= MAX_SAMPLES)
+	if(counter >= max_samples_to_catch)
 	{
 		return 0;
 	}
@@ -83,7 +87,7 @@ int exit_point(struct sys_exit_args *ctx)
 	}
 
 	/* We need to stop the collection if we reach the maximum number of samples. */
-	if(counter >= MAX_SAMPLES)
+	if(counter >= max_samples_to_catch)
 	{
 		return 0;
 	}

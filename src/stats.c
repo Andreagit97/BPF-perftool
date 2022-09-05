@@ -14,10 +14,12 @@
 #define VERBOSE_OPTION "--verbose"
 #define TARGET_SYSCALL "--syscall_id"
 #define SCAP_OPEN_ARGS "--args"
+#define MAX_SAMPLES_OPTION "--samples"
 #define HELP_OPTION "--help"
 
 #define PATH_SCAP_OPEN_EXE "../scap-open/scap-open"
 #define PATH_SYS_GEN_EXE "../stress-tester/syscall_generator"
+#define DEFAULT_SAMPLES 1024 * 1024 * 30
 
 static int setup_libbpf_print_verbose(enum libbpf_print_level level,
 				      const char *format, va_list args)
@@ -43,6 +45,7 @@ bool scap_open_killed = false;
 int scap_open_pid = -1; /* this scap_open_pid will be used by the signal handler to kill the scap-open in case it is still running */
 bool syscall_generator_killed = false;
 int syscall_generator_pid = -1;
+uint64_t max_samples = DEFAULT_SAMPLES;
 
 void print_help()
 {
@@ -104,6 +107,16 @@ void parse_CLI_options(int argc, char **argv)
 			exit(EXIT_SUCCESS);
 		}
 
+		if(!strcmp(argv[i], MAX_SAMPLES_OPTION))
+		{
+			if(!(i + 1 < argc))
+			{
+				printf("\nYou need to specify also the number of samples! Bye!\n");
+				exit(EXIT_FAILURE);
+			}
+			max_samples = strtoul(argv[++i], NULL, 10);
+		}
+
 		if(!strcmp(argv[i], SCAP_OPEN_ARGS))
 		{
 			scap_open_args_index = i + 1;
@@ -154,6 +167,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	skel->bss->max_samples_to_catch = (uint64_t)max_samples;
 	skel->data->target_syscall_id = (uint32_t)syscall_id;
 
 	/* Load & verify BPF programs */
@@ -242,7 +256,7 @@ int main(int argc, char **argv)
 	{
 		// printf("polled: %d\n", skel->bss->counter);
 		sleep(3);
-		if(skel->bss->counter == MAX_SAMPLES)
+		if(skel->bss->counter == max_samples)
 		{
 			if(kill(scap_open_pid, 2) != -1)
 			{
