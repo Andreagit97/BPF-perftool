@@ -53,18 +53,27 @@ int main(int argc, char *argv[])
 			syscall(__NR_execveat, 0, "null", NULL, NULL, 0);
 		}
 
+#ifdef __NR_clone3
 	case __NR_clone3:
 		printf("[SYS-GEN]: Start generating 'clone3' syscall!\n");
 		while(1)
 		{
 			syscall(__NR_clone3, NULL, 0);
 		}
+#endif /* __NR_clone3 */
 
 	case __NR_dup3:
 		printf("[SYS-GEN]: Start generating 'dup3' syscall!\n");
 		while(1)
 		{
 			syscall(__NR_dup3, -1, -1, 0);
+		}
+
+	case __NR_clone:
+		printf("[SYS-GEN]: Start generating 'clone' syscall!\n");
+		while(1)
+		{
+			syscall(__NR_clone, -1, 0, NULL, NULL, 0);
 		}
 
 	default:
