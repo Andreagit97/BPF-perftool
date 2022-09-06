@@ -76,6 +76,13 @@ int main(int argc, char *argv[])
 			syscall(__NR_clone, -1, 0, NULL, NULL, 0);
 		}
 
+	case __NR_connect:
+		printf("[SYS-GEN]: Start generating 'connect' syscall!\n");
+		while(1)
+		{
+			syscall(__NR_connect, -1, NULL, 0);
+		}
+
 	default:
 		printf("[SYS-GEN]: Syscall not supported!\n");
 		break;
