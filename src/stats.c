@@ -257,9 +257,22 @@ int main(int argc, char **argv)
 	/* wait until we reach the number of samples and kill the scap-open. */
 	while(1)
 	{
-		sleep(3);
+		sleep(2);
 		if(skel->bss->counter == max_samples)
 		{
+
+			if(kill(syscall_generator_pid, 2) != -1)
+			{
+				syscall_generator_killed = true;
+				printf("[PERTOOL]: `syscall-generator` correctly killed!\n");
+				break;
+			}
+			else
+			{
+				printf("[PERTOOL]: `syscall-generator` not correctly killed! Terminate the program\n");
+				goto cleanup;
+			}
+
 			/* Remove the scap-open only if it was injected. */
 			if(scap_open_args_index != -1)
 			{
@@ -274,18 +287,6 @@ int main(int argc, char **argv)
 					printf("[PERTOOL]: `scap-open` not correctly killed! Terminate the program\n");
 					goto cleanup;
 				}
-			}
-
-			if(kill(syscall_generator_pid, 2) != -1)
-			{
-				syscall_generator_killed = true;
-				printf("[PERTOOL]: `syscall-generator` correctly killed!\n");
-				break;
-			}
-			else
-			{
-				printf("[PERTOOL]: `syscall-generator` not correctly killed! Terminate the program\n");
-				goto cleanup;
 			}
 		}
 	}

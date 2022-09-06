@@ -16,7 +16,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define BILLION  1000000000L;
+#define BILLION 1000000000L;
 static struct timeval tval_start, tval_end, tval_result;
 static uint64_t syscall_count = 0;
 
@@ -24,7 +24,7 @@ static void signal_callback(int signal)
 {
 	gettimeofday(&tval_end, NULL);
 	timersub(&tval_end, &tval_start, &tval_result);
-	uint64_t avg_nanos = (uint64_t)(tval_result.tv_usec * 1000 + tval_result.tv_sec * 1000000000L) / syscall_count;
+	uint64_t avg_nanos = (uint64_t)((tval_result.tv_usec * 1000 + tval_result.tv_sec * 1000000000L) / syscall_count);
 
 	fprintf(stderr, "[SYS-GEN]: Generated Syscalls: %lu, Avg syscall time (ns): %lu\n", syscall_count, avg_nanos);
 	printf("[SYS-GEN]: End generation! Bye!\n");
