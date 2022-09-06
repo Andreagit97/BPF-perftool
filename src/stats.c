@@ -257,7 +257,6 @@ int main(int argc, char **argv)
 	/* wait until we reach the number of samples and kill the scap-open. */
 	while(1)
 	{
-		// printf("polled: %d\n", skel->bss->counter);
 		sleep(3);
 		if(skel->bss->counter == max_samples)
 		{

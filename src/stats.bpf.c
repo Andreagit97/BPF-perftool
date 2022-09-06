@@ -92,6 +92,11 @@ int exit_point(struct sys_exit_args *ctx)
 		return 0;
 	}
 
+	if(enter_time == 0)
+	{
+		return 0;
+	}
+
 	sum += (bpf_ktime_get_boot_ns() - enter_time);
 	counter++;
 	return 0;
