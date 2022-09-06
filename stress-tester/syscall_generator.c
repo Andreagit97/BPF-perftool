@@ -16,7 +16,9 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define BILLION 1000000000L;
+#define USEC_TO_NANOSEC 1000
+#define SEC_TO_NANOSEC 1000000000L
+
 static struct timeval tval_start, tval_end, tval_result;
 static uint64_t syscall_count = 0;
 
@@ -24,7 +26,13 @@ static void signal_callback(int signal)
 {
 	gettimeofday(&tval_end, NULL);
 	timersub(&tval_end, &tval_start, &tval_result);
-	uint64_t avg_nanos = (uint64_t)((tval_result.tv_usec * 1000 + tval_result.tv_sec * 1000000000L) / syscall_count);
+
+	if(syscall_count == 0)
+	{
+		fprintf(stderr, "[SYS-GEN]: No syscall called!\n");
+		exit(EXIT_FAILURE);
+	}
+	uint64_t avg_nanos = (uint64_t)((tval_result.tv_usec * USEC_TO_NANOSEC + tval_result.tv_sec * SEC_TO_NANOSEC) / syscall_count);
 
 	fprintf(stderr, "[SYS-GEN]: Generated Syscalls: %lu, Avg syscall time (ns): %lu\n", syscall_count, avg_nanos);
 	printf("[SYS-GEN]: End generation! Bye!\n");
@@ -49,6 +57,8 @@ int main(int argc, char *argv[])
 
 	switch(syscall_id)
 	{
+
+#ifdef __NR_open
 	case __NR_open:
 		printf("[SYS-GEN]: Start generating 'open' syscall!\n");
 		gettimeofday(&tval_start, NULL);
@@ -58,7 +68,9 @@ int main(int argc, char *argv[])
 			syscall_count++;
 		}
 		break;
+#endif /*__NR_open */
 
+#ifdef __NR_execveat
 	case __NR_execveat:
 		printf("[SYS-GEN]: Start generating 'execveat' syscall!\n");
 		gettimeofday(&tval_start, NULL);
@@ -67,6 +79,7 @@ int main(int argc, char *argv[])
 			syscall(__NR_execveat, 0, "null", NULL, NULL, 0);
 			syscall_count++;
 		}
+#endif /*__NR_execveat */
 
 #ifdef __NR_clone3
 	case __NR_clone3:
@@ -79,6 +92,7 @@ int main(int argc, char *argv[])
 		}
 #endif /* __NR_clone3 */
 
+#ifdef __NR_dup3
 	case __NR_dup3:
 		printf("[SYS-GEN]: Start generating 'dup3' syscall!\n");
 		gettimeofday(&tval_start, NULL);
@@ -87,7 +101,9 @@ int main(int argc, char *argv[])
 			syscall(__NR_dup3, -1, -1, 0);
 			syscall_count++;
 		}
+#endif /*__NR_dup3 */
 
+#ifdef __NR_clone
 	case __NR_clone:
 		printf("[SYS-GEN]: Start generating 'clone' syscall!\n");
 		gettimeofday(&tval_start, NULL);
@@ -96,13 +112,18 @@ int main(int argc, char *argv[])
 			syscall(__NR_clone, -1, 0, NULL, NULL, 0);
 			syscall_count++;
 		}
+#endif /*__NR_clone */
 
+#ifdef __NR_connect
 	case __NR_connect:
 		printf("[SYS-GEN]: Start generating 'connect' syscall!\n");
+		gettimeofday(&tval_start, NULL);
 		while(1)
 		{
 			syscall(__NR_connect, -1, NULL, 0);
+			syscall_count++;
 		}
+#endif /* __NR_connect */
 
 	default:
 		printf("[SYS-GEN]: Syscall not supported!\n");
