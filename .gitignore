@@ -2,7 +2,5 @@
 
 /build
 /src/build
-/src/.output
-/scap-open/scap-open
-/scap-open/probe.o
+/scap-open/build
 /stress-tester/syscall_generator

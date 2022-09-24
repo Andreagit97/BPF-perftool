@@ -10,7 +10,7 @@ This repository follows the same rules of `libbpf-boostrap`.
 git clone https://github.com/Andreagit97/BPF-perftool.git
 ```
 
-2. Configure the libbpf submodule:
+2. Configure the `libbpf` submodule:
 
 ```bash
 git submodule init
@@ -21,7 +21,8 @@ git submodule update
 
 * `libelf`
 * `zlib`
-* kernel version `>=4.17` (we use raw tracepoints)
+* `cmake`
+* kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
 * if you cannot use the `bpftool` in this repo, you need to have it installed and change the makefile according to its location, or move it to the `tool` directory
 
 ## Build and Run a supported application 🏗️
@@ -33,26 +34,24 @@ cd src
 make stats
 ```
 
-2. You need to put in the `scap-open` directory, the `scap-open` executable and the elf file `probe.o` for the old probe. Compile it from this branch:
+2. You need the `scap-open` executable and the elf file `probe.o` for the old probe. Follow these steps:
 
 ```bash
-https://github.com/Andreagit97/libs/tree/test_bpf
-```
-
-```bash
-cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON -DBUILD_MODERN_BPF_TEST=ON -DMODERN_BPF_DEBUG_MODE=ON -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ..
+cd scap-open
+mkdir build && cd build
+cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON  -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ../../libs
 make scap-open
 make bpf
 ```
 
-3. You need to compile the `stress-tester` executable:
+<!-- 1. You need to compile the `stress-tester` executable:
 
 ```bash
 cd stress-tester
 gcc syscall_generator.c -o syscall_generator
 ```
 
-Please note: the executable must be called `syscall_generator` because our `perftool` will search for that executable name!
+Please note: the executable must be called `syscall_generator` because our `perftool` will search for that executable name! -->
 
 1. Now you should be ready to run the perftool:
 
@@ -69,23 +68,3 @@ sudo ./stats --samples 90
 ```
 
 With you can `sudo ./stats --help` see the menu.
-
-## Stats with `bpftool`
-
-Enable stats:
-
-```bash
-sudo sysctl -w kernel.bpf_stats_enabled=1
-```
-
-Check stats during execution:
-
-```bash
-sudo bpftool prog show | grep <sys-e>
-```
-
-Stop stats during execution:
-
-```bash
-sudo sysctl -w kernel.bpf_stats_enabled=0
-```

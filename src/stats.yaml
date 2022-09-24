@@ -1,0 +1,16 @@
+scap_open:
+  load: true
+  path: "../../scap-open/build/libscap/examples/01-open/scap-open"
+  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228"
+  args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228"
+
+generator:
+  load: true
+  path: "../../stress-tester/syscall_generator"
+  args: "--id 292"
+
+verbose: false
+
+target_syscall_id: 292
+
+samples: 31457280 # 30 * 1024 * 1024
