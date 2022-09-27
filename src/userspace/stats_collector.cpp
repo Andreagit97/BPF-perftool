@@ -388,7 +388,7 @@ void stats_collector::collect_stats()
 
 std::unique_ptr<stats_collector> get_stats_collector()
 {
-	return (std::unique_ptr<stats_collector>)new stats_collector();
+	return std::unique_ptr<stats_collector>(new stats_collector());
 }
 
 /*=============================== GETTER ===============================*/
