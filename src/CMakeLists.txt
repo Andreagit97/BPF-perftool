@@ -156,4 +156,4 @@ target_include_directories(stats
 )
 
 add_dependencies(stats libbpf yamlcpp zlib ProbeSkeleton)
-target_link_libraries(stats elf z "${ZLIB_LIB}" "${LIBBPF_LIB}" "${YAMLCPP_LIB}")
+target_link_libraries(stats "${ZLIB_LIB}" "${LIBBPF_LIB}" "${YAMLCPP_LIB}" elf z)

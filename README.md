@@ -10,7 +10,7 @@ This repository follows the same rules of `libbpf-boostrap`.
 git clone https://github.com/Andreagit97/BPF-perftool.git
 ```
 
-2. Configure the `libbpf` submodule:
+1. Configure the `falcosecurity/libs` submodule:
 
 ```bash
 git submodule init
@@ -25,46 +25,55 @@ git submodule update
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
 * if you cannot use the `bpftool` in this repo, you need to have it installed and change the makefile according to its location, or move it to the `tool` directory
 
-## Build and Run a supported application 🏗️
+## Build the perf stats tool and its requirements  🏗️
 
 1. As a first thing, you need to compile the `stats` executable
 
 ```bash
 cd src
+mkdir && cd build
+cmake ..
 make stats
 ```
 
-2. You need the `scap-open` executable and the elf file `probe.o` for the old probe. Follow these steps:
+2. You need the `scap-open` executable and the elf file `probe.o` for the old probe. Look at the `/scap-open` folder `README.md`
 
-```bash
-cd scap-open
-mkdir build && cd build
-cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON  -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ../../libs
-make scap-open
-make bpf
-```
-
-<!-- 1. You need to compile the `stress-tester` executable:
+3. [OPTIONAL] You can compile the `syscall_generator` executable, otherwise, you can use another generator
 
 ```bash
 cd stress-tester
 gcc syscall_generator.c -o syscall_generator
 ```
 
-Please note: the executable must be called `syscall_generator` because our `perftool` will search for that executable name! -->
+## Run perf stats tool
 
-1. Now you should be ready to run the perftool:
+Now you should be ready to run the perf tool:
 
-```bash
-cd src
-# modern bpf
-sudo ./stats --syscall_id 2 --args --modern_bpf --tp 0 --tp 1 --ppm_sc 5   
-# old bpf
-sudo ./stats --syscall_id 2 --args --bpf ../scap-open/probe.o --tp 0 --tp 1 --ppm_sc 5 
-# to run it without a probe, you have to not pass the `--args`
-sudo ./stats --syscall_id 2
-# modify the number of samples
-sudo ./stats --samples 90
+This tool takes the configuration from the YAML file called `stats.yaml`. This is an example YAML file:
+
+```yaml
+# scap-open: to need more about scap-open args, see:
+# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
+scap_open:
+  load: true # if the scap-open must be enabled
+  path: "../../scap-open/build/libscap/examples/01-open/scap-open" # path to find the scap-open executable
+  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228" # args to start the modern BPF probe to catch only the `dup3` syscalls
+  args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228" # args to start the old BPF probe to catch only the `dup3` syscalls
+
+# syscall generator (here you can you use the tool in the `stress-test` folder or another tool that generates syscalls )
+generator:
+  load: true # right now must be always true
+  path: "../../stress-tester/syscall_generator" # path to find the syscall-generator
+  args: "--id 292"  # args to start generate the `dup3` syscall
+
+# Verbose output in case of errors
+verbose: false
+
+# Number of syscall id to measure (this is the system syscall id)
+target_syscall_id: 292
+
+# Number of samples to catch before stopping the tool, we will compute the avarage time on this number of sampled
+samples: 31457280 # 30 * 1024 * 1024
 ```
 
-With you can `sudo ./stats --help` see the menu.
+You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
