@@ -9,7 +9,7 @@ This folder must be used to compile the `scap-open` executable, you can find som
 From this directory:
 
 ```bash
-mkdir && cd build
+mkdir build && cd build
 cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON  -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ../../libs
 make scap-open
 make bpf
