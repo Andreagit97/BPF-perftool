@@ -31,7 +31,7 @@ git submodule update
 
 ```bash
 cd src
-mkdir && cd build
+mkdir build && cd build
 cmake ..
 make stats
 ```
@@ -72,7 +72,7 @@ verbose: false
 # Number of syscall id to measure (this is the system syscall id)
 target_syscall_id: 292
 
-# Number of samples to catch before stopping the tool, we will compute the avarage time on this number of sampled
+# Number of samples to catch before stopping the tool, we will compute the average time on this number of sampled
 samples: 31457280 # 30 * 1024 * 1024
 ```
 

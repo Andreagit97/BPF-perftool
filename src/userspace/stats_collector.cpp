@@ -376,7 +376,7 @@ void stats_collector::collect_stats()
 	std::cout << "\n---------> Print results!\n\n";
 	if(m_skel->bss->counter != 0)
 	{
-		std::cout << "avarage: " + std::to_string(m_skel->bss->sum / m_skel->bss->counter) + " ns\n";
+		std::cout << "average: " + std::to_string(m_skel->bss->sum / m_skel->bss->counter) + " ns\n";
 	}
 	std::cout << "samples: " << m_skel->bss->counter << std::endl;
 	std::cout << "\n----------------------------------\n\n";
