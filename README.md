@@ -1,6 +1,7 @@
 # BPF-perftool 🏎️
 
-This repository allows you to compare the 2 BPF probes of the Falcosecurity project.
+This repository allows you to compare the 2 BPF probes of the Falcosecurity project using the `scap-open` tool 👇
+<https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme>
 
 ## Configure the environment 💡
 
