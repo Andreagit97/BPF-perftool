@@ -81,11 +81,11 @@ private:
 
 	void generate_syscall(uint16_t syscall_id);
 
-	void load_scap_open();
+	void load_scap_open(const char* scap_open_args[]);
 
 	void kill_scap_open();
 
-	void load_and_verify_single_syscall_config();
+	void verify_single_syscall_config();
 
 public:
 	explicit stats_collector();

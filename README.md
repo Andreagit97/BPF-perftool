@@ -93,3 +93,9 @@ single_syscall_mode:
 ```
 
 You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
+
+## TODO
+
+* support multiple iterations
+* support bpftool bench
+* support redis bench
