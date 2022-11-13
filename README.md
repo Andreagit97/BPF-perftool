@@ -24,8 +24,8 @@ git submodule update
 * `zlib`
 * `libaudit`
 * `cmake`
+* `bpftool`
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
-* if you cannot use the `bpftool` in this repo, you need to have it installed and change the makefile according to its location, or move it to the `tool` directory
 
 ## Build the perf stats tool and its requirements  🏗️
 
