@@ -21,6 +21,7 @@ git submodule update
 
 * `libelf`
 * `zlib`
+* `libaudit`
 * `cmake`
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
 * if you cannot use the `bpftool` in this repo, you need to have it installed and change the makefile according to its location, or move it to the `tool` directory
@@ -77,3 +78,7 @@ samples: 31457280 # 30 * 1024 * 1024
 ```
 
 You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
+
+### TODO
+
+* the syscall generator should be included inside the mode single_syscall

@@ -19,10 +19,9 @@ static void signal_callback(int signal)
 
 int main(int argc, char **argv)
 {
-
 	if(signal(SIGINT, signal_callback) == SIG_ERR)
 	{
-		std::cerr << "An error occurred while setting SIGINT signal handler.\n";
+		log_err("An error occurred while setting SIGINT signal handler.");
 		return EXIT_FAILURE;
 	}
 
@@ -32,12 +31,19 @@ int main(int argc, char **argv)
 
 		collector->start_collection();
 
-		collector->collect_stats();
+		// collector->collect_stats();
+	}
+	catch(std::exception &e)
+	{
+		log_err(e.what());
+		exit(EXIT_FAILURE);
 	}
 	catch(...)
 	{
+		log_err("Unknown termination cause!");
 		exit(EXIT_FAILURE);
 	}
 
+	log_info("correctly terminated. Bye!");
 	return EXIT_SUCCESS;
 }

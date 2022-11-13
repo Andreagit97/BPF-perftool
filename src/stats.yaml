@@ -1,22 +1,48 @@
-# scap-open: to need more about scap-open args, see:
-# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
-scap_open:
-  load: true # if the scap-open must be enabled
-  path: "../../scap-open/build/libscap/examples/01-open/scap-open" # path to find the scap-open executable
-  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228" # args to start the modern BPF probe to catch only the `dup3` syscalls
-  args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228" # args to start the old BPF probe to catch only the `dup3` syscalls
-
-# syscall generator (here you can you use the tool in the `stress-test` folder or another tool that generates syscalls )
-generator:
-  load: true # right now must be always true
-  path: "../../stress-tester/syscall_generator" # path to find the syscall-generator
-  args: "--id 292" # args to start generate the `dup3` syscall
+##########################
+# Generic config
+##########################
 
 # Verbose output in case of errors
 verbose: false
 
-# Number of syscall id to measure (this is the system syscall id)
-target_syscall_id: 292
+# Path to the scap-open executable, to learn more about scap-open args, see:
+# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
+scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
 
-# Number of samples to catch before stopping the tool, we will compute the average time on this number of sampled
-samples: 31457280 # 30 * 1024 * 1024
+# Path to the old BPF probe elf file.
+old_probe_path: "../../libs/build/driver/bpf/probe.o"
+
+# Run perf tests with the modern BPF probe
+modern_bpf: false
+
+# Iterations
+iterations: 1
+
+# These are the possible modes, you can enable just one of these:
+# * SINGLE_SYSCALL
+mode: "SINGLE_SYSCALL"
+
+##########################
+# Specific mode config
+##########################
+
+# TODO here we need to specify just the name of the syscall the rest should be dynamic
+single_syscall_mode:
+  syscall_name: "execveat"
+  samples: 31457280 # 30 * 1024 * 1024 # Number of samples to catch before stopping the tool, we will compute the average time on this number of samples
+  ## TODO we need to remove the argument from here
+  scap_open_args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228"
+  target_syscall_id: 292 # Number of syscall id to measure (this is the system syscall id)
+  generator_path: "../../stress-tester/syscall_generator" # path to find the syscall-generator
+  generator_args: "--id 292" # args to start generate the `dup3` syscall
+  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228" # args to start the modern BPF probe to catch only the `dup3` syscalls
+
+bpftool_mode:
+  bpftool_path: ""
+  bpftool_args: ""
+  scap_open_args: ""
+
+redis_bench_mode:
+  redis_bench_path: ""
+  redis_bench_args: ""
+  scap_open_args: ""
