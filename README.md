@@ -1,6 +1,6 @@
 # BPF-perftool 🏎️
 
-This repository follows the same rules of `libbpf-boostrap`.
+This repository allows you to compare the 2 BPF probes of the Falcosecurity project.
 
 ## Configure the environment 💡
 
@@ -10,7 +10,7 @@ This repository follows the same rules of `libbpf-boostrap`.
 git clone https://github.com/Andreagit97/BPF-perftool.git
 ```
 
-1. Configure the `falcosecurity/libs` submodule:
+2. Configure the `falcosecurity/libs` submodule:
 
 ```bash
 git submodule init
@@ -21,13 +21,14 @@ git submodule update
 
 * `libelf`
 * `zlib`
+* `libaudit`
 * `cmake`
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
 * if you cannot use the `bpftool` in this repo, you need to have it installed and change the makefile according to its location, or move it to the `tool` directory
 
 ## Build the perf stats tool and its requirements  🏗️
 
-1. As a first thing, you need to compile the `stats` executable
+1. As a first thing, you need to compile the `stats` executable. From the repo root type:
 
 ```bash
 cd src
@@ -36,44 +37,59 @@ cmake ..
 make stats
 ```
 
-2. You need the `scap-open` executable and the elf file `probe.o` for the old probe. Look at the `/scap-open` folder `README.md`
-
-3. [OPTIONAL] You can compile the `syscall_generator` executable, otherwise, you can use another generator
+2. You need the `scap-open` executable and the elf file `probe.o` for the old probe. To obtain these files you can use the `libs` submodule, from the repo root type:
 
 ```bash
-cd stress-tester
-gcc syscall_generator.c -o syscall_generator
+cd libs
+mkdir build && cd build
+cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON  -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ..
+make scap-open
+make bpf
 ```
 
 ## Run perf stats tool
 
-Now you should be ready to run the perf tool:
+Now you should be ready to run the perf tool.
+
+```bash
+cd src/build
+sudo ./stats
+```
 
 This tool takes the configuration from the YAML file called `stats.yaml`. This is an example YAML file:
 
 ```yaml
-# scap-open: to need more about scap-open args, see:
-# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
-scap_open:
-  load: true # if the scap-open must be enabled
-  path: "../../scap-open/build/libscap/examples/01-open/scap-open" # path to find the scap-open executable
-  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228" # args to start the modern BPF probe to catch only the `dup3` syscalls
-  args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228" # args to start the old BPF probe to catch only the `dup3` syscalls
-
-# syscall generator (here you can you use the tool in the `stress-test` folder or another tool that generates syscalls )
-generator:
-  load: true # right now must be always true
-  path: "../../stress-tester/syscall_generator" # path to find the syscall-generator
-  args: "--id 292"  # args to start generate the `dup3` syscall
+##########################
+# Generic config
+##########################
 
 # Verbose output in case of errors
 verbose: false
 
-# Number of syscall id to measure (this is the system syscall id)
-target_syscall_id: 292
+# Path to the scap-open executable, to learn more about scap-open args, see:
+# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
+scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
 
-# Number of samples to catch before stopping the tool, we will compute the average time on this number of sampled
-samples: 31457280 # 30 * 1024 * 1024
+# Path to the old BPF probe elf file.
+old_probe_path: "../../libs/build/driver/bpf/probe.o"
+
+# Run perf tests with the modern BPF probe, `false` means use the old BPF probe
+modern_bpf: false
+
+# Repeat the bench multiple times to increase the accuracy
+iterations: 1
+
+# These are the possible modes, you can enable just one of these (right now we support only this mode):
+# * SINGLE_SYSCALL
+mode: "SINGLE_SYSCALL"
+
+##########################
+# Specific mode config
+##########################
+
+single_syscall_mode:
+  syscall_name: "execveat"
+  samples: 30000 # Number of samples to catch before stopping the tool, we will compute the average time on this number of samples
 ```
 
 You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
