@@ -119,11 +119,6 @@ void stats_collector::load_and_verify_single_syscall_config()
 		throw std::runtime_error("Syscall chosen is unknown to scap-open!");
 	}
 	m_single_syscall_args.ppm_sc_id = it->second;
-
-	/// TODO: we need to remove these
-	m_single_syscall_args.scap_open_args = get_scalar<std::string>("single_syscall_mode.scap_open_args", "");
-	m_single_syscall_args.target_syscall_id = get_scalar<uint16_t>("single_syscall_mode.target_syscall_id", 0);
-	m_single_syscall_args.generator_path = get_scalar<std::string>("single_syscall_mode.generator_path", "");
 }
 
 void stats_collector::parse_yaml_config()
@@ -148,6 +143,8 @@ void stats_collector::parse_yaml_config()
 	/* Retrieve the selected mode */
 	std::string mode_string = get_scalar<std::string>("mode", "");
 	convert_mode_from_string(mode_string);
+
+	log_info("Chosen mode: " << mode_string);
 
 	/* Retrieve specific-mode config */
 	switch(m_mode)
@@ -176,11 +173,6 @@ void stats_collector::parse_yaml_config()
 	// m_generator_load = get_scalar<bool>("generator.load", false);
 	// m_generator_path = get_scalar<std::string>("generator.path", "");
 	// m_generator_args = get_scalar<std::string>("generator.args", "");
-
-	// /* Load generic config */
-	// m_verbose = get_scalar<bool>("verbose", false);
-	// m_target_syscall_id = get_scalar<uint16_t>("target_syscall_id", false);
-	// m_num_samples = get_scalar<uint64_t>("samples", DEFAULT_SAMPLES);
 }
 
 template<typename T>
@@ -208,9 +200,8 @@ void stats_collector::open_load_bpf_skel()
 		throw std::runtime_error("Failed to open BPF skeleton");
 	}
 
-	/// TODO: we need to change these
-	m_skel->bss->max_samples_to_catch = m_num_samples;
-	m_skel->data->target_syscall_id = m_target_syscall_id;
+	m_skel->bss->max_samples_to_catch = m_single_syscall_args.samples;
+	m_skel->data->target_syscall_id = m_single_syscall_args.syscall_id;
 
 	int err = stats__load(m_skel);
 	if(err)
@@ -367,7 +358,7 @@ void stats_collector::wait_collection_end()
 	while(1)
 	{
 		sleep(2);
-		if(m_skel->bss->counter == m_num_samples)
+		if(m_skel->bss->counter == m_single_syscall_args.samples)
 		{
 			kill_scap_open();
 			kill_generator();
@@ -408,35 +399,18 @@ void stats_collector::run_single_syscall_bench()
 		throw std::runtime_error("Failed to attach the `exit_point` prog");
 	}
 
-	// while(m_skel->bss->counter != m_num_samples)
-	// {
-
-	int i = 0;
-	while(i++ < 10)
+	log_info("samples: " << m_single_syscall_args.samples);
+	while(m_skel->bss->counter != m_single_syscall_args.samples)
 	{
-		log_info("Throw 10 " << m_single_syscall_args.syscall_name);
-		generate_syscall(m_single_syscall_args.syscall_id);
+		int i = 0;
+		while(i++ < 10000)
+		{
+			generate_syscall(m_single_syscall_args.syscall_id);
+		}
+		log_info("counter: " << m_skel->bss->counter);
 	}
-
-	// 	if(m_skel->bss->counter == m_num_samples)
-	// 	{
-	// 		kill_scap_open();
-	// 		kill_generator();
-	// 		break;
-	// 	}
-	// }
-
-	// /* Right now it should be always true!! */
-	// if(m_generator_load)
-	// {
-	// 	load_generator();
-	// }
-	// else
-	// {
-	// 	throw std::runtime_error("The generator must be always loaded!");
-	// }
-
-	// wait_collection_end();
+	kill_scap_open();
+	collect_stats();
 }
 
 /*=============================== COLLECTION ===============================*/
@@ -458,14 +432,11 @@ stats_collector::~stats_collector()
 	/* Clear the bpf state */
 	stats__destroy(m_skel);
 
-	// kill_generator();
-
 	kill_scap_open();
 }
 
 void stats_collector::start_collection()
 {
-
 	switch(m_mode)
 	{
 	case SINGLE_SYSCALL_MODE:
@@ -473,8 +444,6 @@ void stats_collector::start_collection()
 		break;
 
 	default:
-		/// TODO: we need to remove this
-		throw std::runtime_error("Unsupported mode in 'start_collection'!");
 		break;
 	}
 }

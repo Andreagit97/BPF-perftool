@@ -13,7 +13,7 @@ scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
 old_probe_path: "../../libs/build/driver/bpf/probe.o"
 
 # Run perf tests with the modern BPF probe
-modern_bpf: false
+modern_bpf: true
 
 # Iterations
 iterations: 1
@@ -29,13 +29,7 @@ mode: "SINGLE_SYSCALL"
 # TODO here we need to specify just the name of the syscall the rest should be dynamic
 single_syscall_mode:
   syscall_name: "execveat"
-  samples: 31457280 # 30 * 1024 * 1024 # Number of samples to catch before stopping the tool, we will compute the average time on this number of samples
-  ## TODO we need to remove the argument from here
-  scap_open_args: "--bpf ../../scap-open/build/driver/bpf/probe.o --tp 0 --tp 1 --ppm_sc 228"
-  target_syscall_id: 292 # Number of syscall id to measure (this is the system syscall id)
-  generator_path: "../../stress-tester/syscall_generator" # path to find the syscall-generator
-  generator_args: "--id 292" # args to start generate the `dup3` syscall
-  # args: "--modern_bpf --tp 0 --tp 1 --ppm_sc 228" # args to start the modern BPF probe to catch only the `dup3` syscalls
+  samples: 30000 # 30 * 1024 * 1024 # Number of samples to catch before stopping the tool, we will compute the average time on this number of samples
 
 bpftool_mode:
   bpftool_path: ""

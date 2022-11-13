@@ -82,9 +82,6 @@ private:
 	pid_t m_generator_pid;
 	pid_t m_generator_killed;
 
-	uint16_t m_target_syscall_id;
-	uint64_t m_num_samples;
-
 	template<typename T>
 	const T get_scalar(const std::string& key, const T& default_value);
 
