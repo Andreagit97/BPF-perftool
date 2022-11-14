@@ -49,6 +49,24 @@ void stats_collector::generate_syscall(uint16_t syscall_id)
 		break;
 #endif /* __NR_connect */
 
+#ifdef __NR_pipe
+	case __NR_pipe:
+		syscall(__NR_pipe, NULL);
+		break;
+#endif /* __NR_pipe */
+
+#ifdef __NR_close
+	case __NR_close:
+		syscall(__NR_close, -1);
+		break;
+#endif /* __NR_close */
+
+#ifdef __NR_capset
+	case __NR_capset:
+		syscall(__NR_capset, NULL, NULL);
+		break;
+#endif /* __NR_close */
+
 	default:
 		break;
 	}
