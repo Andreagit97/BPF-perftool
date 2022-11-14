@@ -108,7 +108,6 @@ void stats_collector::single_syscall_config()
 	log_info("- syscall_name: " << m_single_syscall_args.syscall_name);
 	log_info("- syscall_id: " << m_single_syscall_args.syscall_id);
 	log_info("- ppm_sc_id: " << m_single_syscall_args.ppm_sc_id);
-	log_info("- modern_bpf: " << m_modern_probe);
 }
 
 void stats_collector::single_syscall_bench()
@@ -200,12 +199,13 @@ void stats_collector::single_syscall_results()
 	std::string filename = m_results_dir + "/single_syscall_" + (m_modern_probe ? "modern_bpf_" : "old_bpf_") + m_single_syscall_args.syscall_name + ".txt";
 	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_single_syscall_args.final_iterations);
 
-	std::ofstream outfile(filename);
+	std::ofstream outfile(filename, std::ios_base::app);
 	outfile << "* Average: " << m_single_syscall_args.final_average / m_single_syscall_args.final_iterations << std::endl;
 	outfile << "* Samples per iteration: " << m_single_syscall_args.samples << std::endl;
 	outfile << "* Iterations: " << m_single_syscall_args.final_iterations << std::endl;
 	outfile << "* Syscall: " << m_single_syscall_args.syscall_name << std::endl;
 	outfile << "* Modern_bpf: " << m_modern_probe << std::endl;
+	outfile << std::endl;
 	outfile.close();
 }
 
@@ -346,6 +346,8 @@ stats_collector::stats_collector()
 	std::string mode_string = get_scalar<std::string>("mode", "");
 	convert_mode_from_string(mode_string);
 
+	log_info("Modern bpf: " << m_modern_probe);
+	log_info("Iterations: " << m_iterations);
 	log_info("Chosen mode: " << mode_string);
 
 	/*
