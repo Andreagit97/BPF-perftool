@@ -69,6 +69,7 @@ private:
 	uint64_t m_iterations;
 	std::string m_scap_open_path;
 
+	/* Specific config */
 	single_syscall_mode_args m_single_syscall_args;
 
 	/*=============================== YAML CONFIG ===============================*/
@@ -106,7 +107,11 @@ private:
 
 	/*=============================== SCAP-OPEN ===============================*/
 
+	/*=============================== GENERATE SYSCALLS ===============================*/
+
 	void generate_syscall(uint16_t syscall_id);
+
+	/*=============================== GENERATE SYSCALLS ===============================*/
 
 public:
 	explicit stats_collector();

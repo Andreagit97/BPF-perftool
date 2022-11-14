@@ -148,6 +148,7 @@ add_custom_target(${BPF_SKEL_TARGET} ALL DEPENDS ${BPF_SKEL_FILE})
 add_executable(stats
     userspace/main.cpp
     userspace/stats_collector.cpp
+    userspace/syscall_generator.cpp
 )
 
 set(STATS_INCLUDES
