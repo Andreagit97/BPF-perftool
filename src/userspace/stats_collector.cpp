@@ -388,6 +388,7 @@ void stats_collector::start_collection()
 	while(m_iterations--)
 	{
 		/* Leave some time between an iteration and another */
+		log_info("Iteration: " << m_iterations);
 		sleep(3);
 		switch(m_mode)
 		{
