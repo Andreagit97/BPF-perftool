@@ -6,14 +6,23 @@
 #include <ppm_events_public.h>
 
 #define MODERN_BPF_OPTION "--modern_bpf"
-#define OLD_BPF_OPTION "--bpf"
+#define KMOD_OPTION "--kmod"
+#define BPF_OPTION "--bpf"
 #define TRACEPOINT_OPTION "--tp"
 #define PPM_SC_OPTION "--ppm_sc"
 
 #define LOG_PREFIX "[PERF-TOOL]: "
-#define SINGLE_SYSCALL_MODE_STRING "SINGLE_SYSCALL_MODE"
-#define BPFTOOL_MODE_STRING "BPFTOOL_MODE"
-#define REDIS_BENCH_MODE_STRING "REDIS_BENCH_MODE"
+
+#define UNKNOWN_MODE_STRING "UNKNOWN"
+#define SINGLE_SYSCALL_MODE_STRING "SINGLE_SYSCALL"
+#define BPFTOOL_MODE_STRING "BPFTOOL"
+#define REDIS_BENCH_MODE_STRING "REDIS_BENCH"
+
+#define UNKNOWN_INSTRUMENTATION_STRING "unknown"
+#define MODERN_BPF_INSTRUMENTATION_STRING "modern_bpf"
+#define BPF_INSTRUMENTATION_STRING "bpf"
+#define KMOD_INSTRUMENTATION_STRING "kmod"
+#define NO_INSTRUMENTATION_STRING "no_instrumentation"
 
 #define log_err(x) std::cerr << LOG_PREFIX << x << std::endl;
 
@@ -30,8 +39,16 @@ enum collector_mode
 	UNKNOWN_MODE = 0,
 	SINGLE_SYSCALL_MODE = 1,
 	BPFTOOL_MODE = 2,
-	REDIS_BENCH_MODE = 3,
-	MAX_MODE = 4
+	REDIS_BENCH_MODE = 3
+};
+
+enum instrumentation_type
+{
+	UNKNOWN_INSTR = 0,
+	NO_INSTR = 1,
+	BPF_INSTR = 2,
+	KMOD_INSTR = 3,
+	MODERN_BPF_INSTR = 4
 };
 
 struct single_syscall_mode_args
@@ -63,8 +80,8 @@ private:
 
 	/* Generic config */
 	collector_mode m_mode;
+	enum instrumentation_type m_instrumentation;
 	bool m_verbose;
-	bool m_modern_probe;
 	std::string m_old_probe_path;
 	uint64_t m_iterations;
 	std::string m_scap_open_path;
@@ -81,11 +98,17 @@ private:
 
 	/*=============================== YAML CONFIG ===============================*/
 
-	/*=============================== MODES ===============================*/
+	/*=============================== CONFIGS ===============================*/
 
 	void convert_mode_from_string(const std::string& key);
 
-	/*=============================== MODES ===============================*/
+	std::string convert_mode_to_string();
+
+	void convert_instrumentation_from_string(const std::string& key);
+
+	std::string convert_instrumentation_to_string();
+
+	/*=============================== CONFIGS ===============================*/
 
 	/*=============================== SINGLE SYSCALL MODE ===============================*/
 
@@ -100,6 +123,10 @@ private:
 	/*=============================== SINGLE SYSCALL MODE ===============================*/
 
 	/*=============================== SCAP-OPEN ===============================*/
+
+	std::string get_scap_open_source();
+
+	std::string get_scap_open_driver_path();
 
 	void load_scap_open(const char* scap_open_args[]);
 

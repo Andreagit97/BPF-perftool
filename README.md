@@ -57,43 +57,7 @@ cd src/build
 sudo ./stats
 ```
 
-This tool takes the configuration from the YAML file called `stats.yaml`. This is an example YAML file:
-
-```yaml
-##########################
-# Generic config
-##########################
-
-# Verbose output in case of errors
-verbose: false
-
-# Path to the scap-open executable, to learn more about scap-open args, see:
-# https://github.com/falcosecurity/libs/tree/master/userspace/libscap/examples/01-open#readme
-scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
-
-# Path to the old BPF probe elf file.
-old_probe_path: "../../libs/build/driver/bpf/probe.o"
-
-# Run perf tests with the modern BPF probe, `false` means use the old BPF probe
-modern_bpf: false
-
-# Repeat the bench multiple times to increase the accuracy
-iterations: 1
-
-# These are the possible modes, you can enable just one of these (right now we support only this mode):
-# * SINGLE_SYSCALL
-mode: "SINGLE_SYSCALL"
-
-##########################
-# Specific mode config
-##########################
-
-single_syscall_mode:
-  syscall_name: "execveat"
-  samples: 30000 # Number of samples to catch before stopping the tool, we will compute the average time on this number of samples
-```
-
-You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
+This tool takes the configuration from the YAML file called `stats.yaml`. You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
 
 ## TODO
 

@@ -35,26 +35,102 @@ static int setup_libbpf_print_no_verbose(enum libbpf_print_level level,
 
 /*=============================== LIBBPF CONFIG ===============================*/
 
-/*=============================== MODES ===============================*/
+/*=============================== CONFIGS ===============================*/
 
 void stats_collector::convert_mode_from_string(const std::string& key)
 {
 	m_mode = UNKNOWN_MODE;
-	if(key.compare(SINGLE_SYSCALL_MODE_STRING))
+	if(key.compare(SINGLE_SYSCALL_MODE_STRING) == 0)
 	{
 		m_mode = SINGLE_SYSCALL_MODE;
 	}
-	else if(key.compare(BPFTOOL_MODE_STRING))
+	else if(key.compare(BPFTOOL_MODE_STRING) == 0)
 	{
 		m_mode = BPFTOOL_MODE;
 	}
-	else if(key.compare(REDIS_BENCH_MODE_STRING))
+	else if(key.compare(REDIS_BENCH_MODE_STRING) == 0)
 	{
 		m_mode = REDIS_BENCH_MODE;
 	}
+	else
+	{
+		throw std::runtime_error("Unknown testing mode selected!");
+	}
 }
 
-/*=============================== MODES ===============================*/
+std::string stats_collector::convert_mode_to_string()
+{
+	switch(m_mode)
+	{
+	case UNKNOWN_MODE:
+		return UNKNOWN_MODE_STRING;
+
+	case SINGLE_SYSCALL_MODE:
+		return SINGLE_SYSCALL_MODE_STRING;
+
+	case BPFTOOL_MODE:
+		return BPFTOOL_MODE_STRING;
+
+	case REDIS_BENCH_MODE:
+		return REDIS_BENCH_MODE_STRING;
+
+	default:
+		throw std::runtime_error("Unknown testing mode selected!");
+		break;
+	}
+}
+
+void stats_collector::convert_instrumentation_from_string(const std::string& key)
+{
+	m_instrumentation = UNKNOWN_INSTR;
+	if(key.compare(NO_INSTRUMENTATION_STRING) == 0)
+	{
+		m_instrumentation = NO_INSTR;
+	}
+	else if(key.compare(MODERN_BPF_INSTRUMENTATION_STRING) == 0)
+	{
+		m_instrumentation = MODERN_BPF_INSTR;
+	}
+	else if(key.compare(BPF_INSTRUMENTATION_STRING) == 0)
+	{
+		m_instrumentation = BPF_INSTR;
+	}
+	else if(key.compare(KMOD_INSTRUMENTATION_STRING) == 0)
+	{
+		m_instrumentation = KMOD_INSTR;
+	}
+	else
+	{
+		throw std::runtime_error("Unknown instrumentation selected!");
+	}
+}
+
+std::string stats_collector::convert_instrumentation_to_string()
+{
+	switch(m_instrumentation)
+	{
+	case UNKNOWN_INSTR:
+		return UNKNOWN_INSTRUMENTATION_STRING;
+
+	case NO_INSTR:
+		return NO_INSTRUMENTATION_STRING;
+
+	case MODERN_BPF_INSTR:
+		return MODERN_BPF_INSTRUMENTATION_STRING;
+
+	case BPF_INSTR:
+		return BPF_INSTRUMENTATION_STRING;
+
+	case KMOD_INSTR:
+		return KMOD_INSTRUMENTATION_STRING;
+
+	default:
+		throw std::runtime_error("Unknown instrumentation selected!");
+		break;
+	}
+}
+
+/*=============================== CONFIGS ===============================*/
 
 /*=============================== SINGLE SYSCALL MODE ===============================*/
 
@@ -137,33 +213,40 @@ void stats_collector::single_syscall_bench()
 		throw std::runtime_error("Failed to attach the `starting_point` prog");
 	}
 
-	const char* scap_open_args[] = {"scap-open", m_modern_probe ? MODERN_BPF_OPTION : OLD_BPF_OPTION, m_modern_probe ? "" : m_old_probe_path.c_str(), TRACEPOINT_OPTION, "0", TRACEPOINT_OPTION, "1", PPM_SC_OPTION, std::to_string(m_single_syscall_args.ppm_sc_id).c_str(), NULL};
-	load_scap_open(scap_open_args);
-
-	/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
-	 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
-	 */
-	int attempts = 3;
-	while(true)
+	if(m_instrumentation != NO_INSTR)
 	{
-		sleep(2);
-		int err = system("sudo bpftool prog show | grep -q sys_exit");
-		if(err != 0)
+
+		std::string scap_open_source = get_scap_open_source();
+		std::string driver_path = get_scap_open_driver_path();
+
+		const char* scap_open_args[] = {"scap-open", scap_open_source.c_str(), driver_path.c_str(), TRACEPOINT_OPTION, "0", TRACEPOINT_OPTION, "1", PPM_SC_OPTION, std::to_string(m_single_syscall_args.ppm_sc_id).c_str(), NULL};
+		load_scap_open(scap_open_args);
+
+		/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
+		 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
+		 */
+		int attempts = 3;
+		while(true)
 		{
-			if(attempts == 1)
+			sleep(2);
+			int err = system("sudo bpftool prog show | grep -q sys_exit");
+			if(err != 0)
 			{
-				throw std::runtime_error("The `scap-open` exe is not loaded!");
+				if(attempts == 1)
+				{
+					throw std::runtime_error("The `scap-open` exe is not loaded!");
+				}
+				attempts--;
+				log_info("no `scap-open` loaded. Retry");
 			}
-			attempts--;
-			log_info("no `scap-open` loaded. Retry");
+			else
+			{
+				log_info("`scap-open` correctly loaded!");
+				break;
+			}
 		}
-		else
-		{
-			log_info("`scap-open` correctly loaded!");
-			break;
-		}
+		sleep(1);
 	}
-	sleep(1);
 
 	/* Attach the `sys_exit` tracepoint after the scap-open. */
 	m_skel->links.exit_point = bpf_program__attach(m_skel->progs.exit_point);
@@ -182,7 +265,7 @@ void stats_collector::single_syscall_bench()
 		}
 	}
 
-	/* We don't need the scap-open anymore */
+	/* We don't need the scap-open anymore, killed only if present */
 	kill_scap_open();
 
 	m_single_syscall_args.final_average += (m_skel->bss->sum / m_skel->bss->counter);
@@ -196,7 +279,7 @@ void stats_collector::single_syscall_bench()
 void stats_collector::single_syscall_results()
 {
 	uint64_t average = m_single_syscall_args.final_average / m_single_syscall_args.final_iterations;
-	std::string filename = m_results_dir + "/single_syscall_" + (m_modern_probe ? "modern_bpf_" : "old_bpf_") + m_single_syscall_args.syscall_name + ".txt";
+	std::string filename = m_results_dir + "/single_syscall_" + convert_instrumentation_to_string() + "_" + m_single_syscall_args.syscall_name + ".txt";
 	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_single_syscall_args.final_iterations);
 
 	std::ofstream outfile(filename, std::ios_base::app);
@@ -204,7 +287,7 @@ void stats_collector::single_syscall_results()
 	outfile << "* Samples per iteration: " << m_single_syscall_args.samples << std::endl;
 	outfile << "* Iterations: " << m_single_syscall_args.final_iterations << std::endl;
 	outfile << "* Syscall: " << m_single_syscall_args.syscall_name << std::endl;
-	outfile << "* Modern_bpf: " << m_modern_probe << std::endl;
+	outfile << "* Instrumentation: " << convert_instrumentation_to_string() << std::endl;
 	outfile << std::endl;
 	outfile.close();
 }
@@ -279,6 +362,44 @@ const T stats_collector::get_scalar(const std::string& key, const T& default_val
 
 /*=============================== SCAP-OPEN ===============================*/
 
+std::string stats_collector::get_scap_open_source()
+{
+	switch(m_instrumentation)
+	{
+	case MODERN_BPF_INSTR:
+		return MODERN_BPF_OPTION;
+
+	case BPF_INSTR:
+		return BPF_OPTION;
+
+	case KMOD_INSTR:
+		return KMOD_OPTION;
+
+	default:
+		break;
+	}
+	return "";
+}
+
+std::string stats_collector::get_scap_open_driver_path()
+{
+	switch(m_instrumentation)
+	{
+	case MODERN_BPF_INSTR:
+		return "";
+
+	case BPF_INSTR:
+		return m_old_probe_path;
+
+	case KMOD_INSTR:
+		return "";
+
+	default:
+		break;
+	}
+	return "";
+}
+
 void stats_collector::load_scap_open(const char* scap_open_args[])
 {
 	m_scap_open_pid = fork();
@@ -333,8 +454,9 @@ stats_collector::stats_collector()
 	/* Retrieve the old probe path */
 	m_old_probe_path = get_scalar<std::string>("old_probe_path", "");
 
-	/* Check if we are using the modern BPF probe */
-	m_modern_probe = get_scalar<bool>("modern_bpf", false);
+	/* Retrieve the instrumentation type */
+	std::string instrumentation_string = get_scalar<std::string>("instrumentation", "");
+	convert_instrumentation_from_string(instrumentation_string);
 
 	/* How many times we need to run the perf test */
 	m_iterations = get_scalar<uint64_t>("iterations", 1);
@@ -346,9 +468,9 @@ stats_collector::stats_collector()
 	std::string mode_string = get_scalar<std::string>("mode", "");
 	convert_mode_from_string(mode_string);
 
-	log_info("Modern bpf: " << m_modern_probe);
-	log_info("Iterations: " << m_iterations);
-	log_info("Chosen mode: " << mode_string);
+	log_info("Instrumentation type: " << convert_instrumentation_to_string());
+	log_info("Total iterations: " << m_iterations);
+	log_info("Chosen mode: " << convert_mode_to_string());
 
 	/*
 	 * Retrieve specific-mode config
@@ -366,7 +488,6 @@ stats_collector::stats_collector()
 		break;
 
 	default:
-		throw std::runtime_error("Unknown testing mode selected!");
 		break;
 	}
 }
@@ -388,7 +509,10 @@ void stats_collector::start_collection()
 	while(m_iterations--)
 	{
 		/* Leave some time between an iteration and another */
-		log_info("Iteration: " << m_iterations);
+		std::cout << "-------------------" << std::endl;
+		std::cout << "- Iteration n° " << m_iterations << std::endl;
+		std::cout << "-------------------" << std::endl;
+
 		sleep(3);
 		switch(m_mode)
 		{

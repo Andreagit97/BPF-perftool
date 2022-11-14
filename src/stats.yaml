@@ -12,8 +12,12 @@ scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
 # Path to the old BPF probe elf file.
 old_probe_path: "../../libs/build/driver/bpf/probe.o"
 
-# Run perf tests with the modern BPF probe, `false` means use the old BPF probe
-modern_bpf: false
+# Run perf tests with different instrumentations:
+# - "modern_bpf"
+# - "bpf"
+# - "kmod"
+# - "no_instrumentation"
+instrumentation: "no_instrumentation"
 
 # Repeat the bench multiple times to increase the accuracy
 iterations: 1
