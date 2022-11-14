@@ -86,7 +86,7 @@ int exit_point(struct sys_exit_args *ctx)
 	}
 
 	/* Here we are sure that the enter time is not overwritten since
-	 * the process that thrown the syscall is still waiting to be restored
+	 * the process that threw the syscall is still waiting to be restored
 	 * by the kernel.
 	 */
 	sum += (bpf_ktime_get_boot_ns() - enter_time);

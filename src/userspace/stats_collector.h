@@ -40,6 +40,8 @@ struct single_syscall_mode_args
 	std::string syscall_name;
 	uint16_t syscall_id;
 	uint16_t ppm_sc_id;
+	uint64_t final_average;
+	uint64_t final_iterations;
 };
 
 struct bpftool_mode_args
@@ -57,6 +59,7 @@ private:
 	struct stats* m_skel;
 	YAML::Node m_root;
 	pid_t m_scap_open_killed;
+	std::string m_results_dir;
 
 	/* Generic config */
 	collector_mode m_mode;
@@ -68,24 +71,42 @@ private:
 
 	single_syscall_mode_args m_single_syscall_args;
 
+	/*=============================== YAML CONFIG ===============================*/
+
 	template<typename T>
 	const T get_scalar(const std::string& key, const T& default_value);
 
 	void get_node(YAML::Node& ret, const std::string& key);
 
+	/*=============================== YAML CONFIG ===============================*/
+
+	/*=============================== MODES ===============================*/
+
 	void convert_mode_from_string(const std::string& key);
 
-	void run_single_syscall_bench();
+	/*=============================== MODES ===============================*/
+
+	/*=============================== SINGLE SYSCALL MODE ===============================*/
 
 	void open_load_bpf_skel();
 
-	void generate_syscall(uint16_t syscall_id);
+	void single_syscall_config();
+
+	void single_syscall_bench();
+
+	void single_syscall_results();
+
+	/*=============================== SINGLE SYSCALL MODE ===============================*/
+
+	/*=============================== SCAP-OPEN ===============================*/
 
 	void load_scap_open(const char* scap_open_args[]);
 
 	void kill_scap_open();
 
-	void verify_single_syscall_config();
+	/*=============================== SCAP-OPEN ===============================*/
+
+	void generate_syscall(uint16_t syscall_id);
 
 public:
 	explicit stats_collector();

@@ -22,6 +22,9 @@ iterations: 1
 # * SINGLE_SYSCALL
 mode: "SINGLE_SYSCALL"
 
+# Directory where results will be saved
+results_dir: "../../results"
+
 ##########################
 # Specific mode config
 ##########################

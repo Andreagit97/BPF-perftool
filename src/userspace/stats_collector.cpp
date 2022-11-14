@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <algorithm>
 #include <libaudit.h>
+#include <fstream>
 
 #define EXECVE_MAX_ARGS 128
 #define CONF_FILE_PATH "../stats.yaml"
@@ -68,6 +69,9 @@ void stats_collector::open_load_bpf_skel()
 	m_skel->bss->max_samples_to_catch = m_single_syscall_args.samples;
 	m_skel->data->target_syscall_id = m_single_syscall_args.syscall_id;
 	m_skel->data->target_pid = ::getpid();
+	m_skel->bss->counter = 0;
+	m_skel->bss->sum = 0;
+	m_skel->bss->enter_time = 0;
 
 	int err = stats__load(m_skel);
 	if(err)
@@ -76,8 +80,10 @@ void stats_collector::open_load_bpf_skel()
 	}
 }
 
-void stats_collector::verify_single_syscall_config()
+void stats_collector::single_syscall_config()
 {
+	m_single_syscall_args.final_average = 0;
+	m_single_syscall_args.final_iterations = 0;
 	m_single_syscall_args.samples = get_scalar<uint64_t>("single_syscall_mode.samples", DEFAULT_SAMPLES);
 	m_single_syscall_args.syscall_name = get_scalar<std::string>("single_syscall_mode.syscall_name", "");
 	if(m_single_syscall_args.syscall_name.empty())
@@ -102,10 +108,15 @@ void stats_collector::verify_single_syscall_config()
 	log_info("- syscall_name: " << m_single_syscall_args.syscall_name);
 	log_info("- syscall_id: " << m_single_syscall_args.syscall_id);
 	log_info("- ppm_sc_id: " << m_single_syscall_args.ppm_sc_id);
+	log_info("- modern_bpf: " << m_modern_probe);
 }
 
-void stats_collector::run_single_syscall_bench()
+void stats_collector::single_syscall_bench()
 {
+	/* If we have different iterations we need to kill the scap-open different times */
+	m_scap_open_killed = false;
+	m_scap_open_pid = -1;
+
 	/* Configure libbpf. */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	if(m_verbose)
@@ -165,16 +176,44 @@ void stats_collector::run_single_syscall_bench()
 	while(m_skel->bss->counter != m_single_syscall_args.samples)
 	{
 		int i = 0;
+		/* Generate sets of 10000 syscalls until we reach the required number. */
 		while(i++ < 10000)
 		{
 			generate_syscall(m_single_syscall_args.syscall_id);
 		}
 	}
+
+	/* We don't need the scap-open anymore */
 	kill_scap_open();
-	collect_stats();
+
+	m_single_syscall_args.final_average += (m_skel->bss->sum / m_skel->bss->counter);
+	m_single_syscall_args.final_iterations++;
+
+	/* Destroy the BPF skeleton */
+	stats__destroy(m_skel);
+	m_skel = NULL;
+}
+
+void stats_collector::single_syscall_results()
+{
+	uint64_t average = m_single_syscall_args.final_average / m_single_syscall_args.final_iterations;
+	std::string filename = m_results_dir + "/single_syscall_" + (m_modern_probe ? "modern_bpf_" : "old_bpf_") + m_single_syscall_args.syscall_name + ".txt";
+	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_single_syscall_args.final_iterations);
+
+	std::ofstream outfile(filename);
+	outfile << "* Average: " << m_single_syscall_args.final_average / m_single_syscall_args.final_iterations << std::endl;
+	outfile << "* Samples per iteration: " << m_single_syscall_args.samples << std::endl;
+	outfile << "* Iterations: " << m_single_syscall_args.final_iterations << std::endl;
+	outfile << "* Syscall: " << m_single_syscall_args.syscall_name << std::endl;
+	outfile << "* Modern_bpf: " << m_modern_probe << std::endl;
+	outfile.close();
 }
 
 /*=============================== SINGLE SYSCALL MODE ===============================*/
+
+/*=============================== BPFTOOL MODE ===============================*/
+
+/*=============================== BPFTOOL MODE ===============================*/
 
 /*=============================== YAML CONFIG ===============================*/
 
@@ -238,7 +277,7 @@ const T stats_collector::get_scalar(const std::string& key, const T& default_val
 
 /*=============================== YAML CONFIG ===============================*/
 
-/*=============================== COLLECTION ===============================*/
+/*=============================== SCAP-OPEN ===============================*/
 
 void stats_collector::load_scap_open(const char* scap_open_args[])
 {
@@ -274,7 +313,7 @@ void stats_collector::kill_scap_open()
 	}
 }
 
-/*=============================== COLLECTION ===============================*/
+/*=============================== SCAP-OPEN ===============================*/
 
 /*=============================== PUBLIC ===============================*/
 
@@ -300,6 +339,9 @@ stats_collector::stats_collector()
 	/* How many times we need to run the perf test */
 	m_iterations = get_scalar<uint64_t>("iterations", 1);
 
+	/* Directory where we will save our bench results */
+	m_results_dir = get_scalar<std::string>("results_dir", "");
+
 	/* Retrieve the selected mode */
 	std::string mode_string = get_scalar<std::string>("mode", "");
 	convert_mode_from_string(mode_string);
@@ -312,7 +354,7 @@ stats_collector::stats_collector()
 	switch(m_mode)
 	{
 	case SINGLE_SYSCALL_MODE:
-		verify_single_syscall_config();
+		single_syscall_config();
 		break;
 
 	case BPFTOOL_MODE:
@@ -343,10 +385,12 @@ void stats_collector::start_collection()
 	/* Repeat the bench `m_iterations` times */
 	while(m_iterations--)
 	{
+		/* Leave some time between an iteration and another */
+		sleep(3);
 		switch(m_mode)
 		{
 		case SINGLE_SYSCALL_MODE:
-			run_single_syscall_bench();
+			single_syscall_bench();
 			break;
 
 		default:
@@ -357,17 +401,15 @@ void stats_collector::start_collection()
 
 void stats_collector::collect_stats()
 {
-	/* Leave one second to avoid overlapping print. */
-	sleep(1);
-
-	/* Collect stats. */
-	std::cout << "\n---------> Print results!\n\n";
-	if(m_skel->bss->counter != 0)
+	switch(m_mode)
 	{
-		std::cout << "average: " + std::to_string(m_skel->bss->sum / m_skel->bss->counter) + " ns\n";
+	case SINGLE_SYSCALL_MODE:
+		single_syscall_results();
+		break;
+
+	default:
+		break;
 	}
-	std::cout << "samples: " << m_skel->bss->counter << std::endl;
-	std::cout << "\n----------------------------------\n\n";
 }
 
 /*=============================== PUBLIC ===============================*/

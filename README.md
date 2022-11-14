@@ -97,6 +97,6 @@ You can simply change the params in this YAML file and run again the `stats` exe
 
 ## TODO
 
-* support multiple iterations
 * support bpftool bench
 * support redis bench
+* support a mode in which we generate only syscall, so we can use the tool as a pure syscall generator.

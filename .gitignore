@@ -2,5 +2,4 @@
 
 /build
 /src/build
-/scap-open/build
-/stress-tester/syscall_generator
+/results
