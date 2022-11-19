@@ -17,14 +17,15 @@ old_probe_path: "../../libs/build/driver/bpf/probe.o"
 # - "bpf"
 # - "kmod"
 # - "no_instrumentation"
-instrumentation: "no_instrumentation"
+instrumentation: "modern_bpf"
 
 # Repeat the bench multiple times to increase the accuracy
 iterations: 1
 
 # These are the possible modes, you can enable just one of these (right now we support only this mode):
 # * SINGLE_SYSCALL
-mode: "SINGLE_SYSCALL"
+# * REDIS
+mode: "REDIS"
 
 # Directory where results will be saved
 results_dir: "../../results"

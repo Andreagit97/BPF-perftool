@@ -35,7 +35,7 @@ int main(int argc, char **argv)
 	}
 	catch(std::exception &e)
 	{
-		log_err(e.what());
+		log_err("Exception message: " << e.what());
 		exit(EXIT_FAILURE);
 	}
 	catch(...)

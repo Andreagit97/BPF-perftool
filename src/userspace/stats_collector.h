@@ -10,13 +10,14 @@
 #define BPF_OPTION "--bpf"
 #define TRACEPOINT_OPTION "--tp"
 #define PPM_SC_OPTION "--ppm_sc"
+#define SIMPLE_SET_OPTION "--simple_set"
 
 #define LOG_PREFIX "[PERF-TOOL]: "
 
 #define UNKNOWN_MODE_STRING "UNKNOWN"
 #define SINGLE_SYSCALL_MODE_STRING "SINGLE_SYSCALL"
 #define BPFTOOL_MODE_STRING "BPFTOOL"
-#define REDIS_BENCH_MODE_STRING "REDIS_BENCH"
+#define REDIS_MODE_STRING "REDIS"
 
 #define UNKNOWN_INSTRUMENTATION_STRING "unknown"
 #define MODERN_BPF_INSTRUMENTATION_STRING "modern_bpf"
@@ -39,7 +40,7 @@ enum collector_mode
 	UNKNOWN_MODE = 0,
 	SINGLE_SYSCALL_MODE = 1,
 	BPFTOOL_MODE = 2,
-	REDIS_BENCH_MODE = 3
+	REDIS_MODE = 3
 };
 
 enum instrumentation_type
@@ -57,15 +58,13 @@ struct single_syscall_mode_args
 	std::string syscall_name;
 	uint16_t syscall_id;
 	uint16_t ppm_sc_id;
-	uint64_t final_average;
+	uint64_t final_syscall_time;
 	uint64_t final_iterations;
 };
 
-struct bpftool_mode_args
+struct redis_mode_args
 {
-	char bpftool_path[4096];
-	char bpftool_args[4096];
-	char scap_open_args[4096];
+	std::map<std::string, double> test_results;
 };
 
 class stats_collector
@@ -88,6 +87,7 @@ private:
 
 	/* Specific config */
 	single_syscall_mode_args m_single_syscall_args;
+	redis_mode_args m_redis_args;
 
 	/*=============================== YAML CONFIG ===============================*/
 
@@ -121,6 +121,12 @@ private:
 	void single_syscall_results();
 
 	/*=============================== SINGLE SYSCALL MODE ===============================*/
+
+	/*=============================== REDIS BENCH MODE ===============================*/
+
+	void redis_bench();
+
+	/*=============================== REDIS BENCH MODE ===============================*/
 
 	/*=============================== SCAP-OPEN ===============================*/
 

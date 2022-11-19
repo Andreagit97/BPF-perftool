@@ -48,9 +48,9 @@ void stats_collector::convert_mode_from_string(const std::string& key)
 	{
 		m_mode = BPFTOOL_MODE;
 	}
-	else if(key.compare(REDIS_BENCH_MODE_STRING) == 0)
+	else if(key.compare(REDIS_MODE_STRING) == 0)
 	{
-		m_mode = REDIS_BENCH_MODE;
+		m_mode = REDIS_MODE;
 	}
 	else
 	{
@@ -71,8 +71,8 @@ std::string stats_collector::convert_mode_to_string()
 	case BPFTOOL_MODE:
 		return BPFTOOL_MODE_STRING;
 
-	case REDIS_BENCH_MODE:
-		return REDIS_BENCH_MODE_STRING;
+	case REDIS_MODE:
+		return REDIS_MODE_STRING;
 
 	default:
 		throw std::runtime_error("Unknown testing mode selected!");
@@ -158,8 +158,8 @@ void stats_collector::open_load_bpf_skel()
 
 void stats_collector::single_syscall_config()
 {
-	m_single_syscall_args.final_average = 0;
 	m_single_syscall_args.final_iterations = 0;
+	m_single_syscall_args.final_syscall_time = 0;
 	m_single_syscall_args.samples = get_scalar<uint64_t>("single_syscall_mode.samples", DEFAULT_SAMPLES);
 	m_single_syscall_args.syscall_name = get_scalar<std::string>("single_syscall_mode.syscall_name", "");
 	if(m_single_syscall_args.syscall_name.empty())
@@ -215,37 +215,11 @@ void stats_collector::single_syscall_bench()
 
 	if(m_instrumentation != NO_INSTR)
 	{
-
 		std::string scap_open_source = get_scap_open_source();
 		std::string driver_path = get_scap_open_driver_path();
 
 		const char* scap_open_args[] = {"scap-open", scap_open_source.c_str(), driver_path.c_str(), TRACEPOINT_OPTION, "0", TRACEPOINT_OPTION, "1", PPM_SC_OPTION, std::to_string(m_single_syscall_args.ppm_sc_id).c_str(), NULL};
 		load_scap_open(scap_open_args);
-
-		/* Check for the `sys_exit` tracepoint with bpftool. We need to attach the
-		 * `sys_exit` tracepoint only after the `scap-open` attaches its one.
-		 */
-		int attempts = 3;
-		while(true)
-		{
-			sleep(2);
-			int err = system("sudo bpftool prog show | grep -q sys_exit");
-			if(err != 0)
-			{
-				if(attempts == 1)
-				{
-					throw std::runtime_error("The `scap-open` exe is not loaded!");
-				}
-				attempts--;
-				log_info("no `scap-open` loaded. Retry");
-			}
-			else
-			{
-				log_info("`scap-open` correctly loaded!");
-				break;
-			}
-		}
-		sleep(1);
 	}
 
 	/* Attach the `sys_exit` tracepoint after the scap-open. */
@@ -268,7 +242,7 @@ void stats_collector::single_syscall_bench()
 	/* We don't need the scap-open anymore, killed only if present */
 	kill_scap_open();
 
-	m_single_syscall_args.final_average += (m_skel->bss->sum / m_skel->bss->counter);
+	m_single_syscall_args.final_syscall_time += (m_skel->bss->sum / m_skel->bss->counter);
 	m_single_syscall_args.final_iterations++;
 
 	/* Destroy the BPF skeleton */
@@ -278,12 +252,12 @@ void stats_collector::single_syscall_bench()
 
 void stats_collector::single_syscall_results()
 {
-	uint64_t average = m_single_syscall_args.final_average / m_single_syscall_args.final_iterations;
+	uint64_t average = m_single_syscall_args.final_syscall_time / m_single_syscall_args.final_iterations;
 	std::string filename = m_results_dir + "/single_syscall_" + convert_instrumentation_to_string() + "_" + m_single_syscall_args.syscall_name + ".txt";
 	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_single_syscall_args.final_iterations);
 
 	std::ofstream outfile(filename, std::ios_base::app);
-	outfile << "* Average: " << m_single_syscall_args.final_average / m_single_syscall_args.final_iterations << std::endl;
+	outfile << "* Average: " << average << std::endl;
 	outfile << "* Samples per iteration: " << m_single_syscall_args.samples << std::endl;
 	outfile << "* Iterations: " << m_single_syscall_args.final_iterations << std::endl;
 	outfile << "* Syscall: " << m_single_syscall_args.syscall_name << std::endl;
@@ -294,9 +268,68 @@ void stats_collector::single_syscall_results()
 
 /*=============================== SINGLE SYSCALL MODE ===============================*/
 
-/*=============================== BPFTOOL MODE ===============================*/
+/*=============================== REDIS-BENCH MODE ===============================*/
 
-/*=============================== BPFTOOL MODE ===============================*/
+void stats_collector::redis_bench()
+{
+	/* If we have different iterations we need to kill the scap-open different times */
+	m_scap_open_killed = false;
+	m_scap_open_pid = -1;
+
+	if(m_instrumentation != NO_INSTR)
+	{
+		std::string scap_open_source = get_scap_open_source();
+		std::string driver_path = get_scap_open_driver_path();
+
+		/* We run it with the simple_set mode since in this way we are considering a compatible set of syscalls. */
+		const char* scap_open_args[] = {"scap-open", scap_open_source.c_str(), driver_path.c_str(), SIMPLE_SET_OPTION, NULL};
+		load_scap_open(scap_open_args);
+	}
+
+	/* Launch redis benchmark */
+	int err = system("redis-benchmark -q -n 10000 -t set,get --csv > ../../results/redis.csv");
+	if(err != 0)
+	{
+		log_err("Redis benchmak issues! Maybe you need to start the Redis server...");
+	}
+
+	/* We don't need the `scap-open` anymore, killed only if present */
+	kill_scap_open();
+
+	/* Parse the redis bench file */
+	/// TODO: this could become a separated function
+	std::ifstream infile("../../results/redis.csv");
+	std::string line;
+	std::string key;
+	std::string value;
+	std::string delimiter = ",";
+	size_t pos = 0;
+
+	while(std::getline(infile, line))
+	{
+		pos = 0;
+		pos = line.find(delimiter);
+		/* we remove " " with +1 and -1 */
+		key = line.substr(1, pos - 2);
+		std::cout << key << std::endl;
+		line.erase(0, pos + delimiter.length());
+
+		pos = line.find(delimiter);
+		/* Some old version of redis benchmark had only 2 columns */
+		if(pos == std::string::npos)
+		{
+			value = line.substr(1, line.size() - 2);
+		}
+		else
+		{
+			value = line.substr(1, pos - 2);
+		}
+		std::cout << value << std::endl;
+		m_redis_args.test_results[key] = std::stod(value);
+	}
+}
+
+/*=============================== REDIS-BENCH MODE ===============================*/
 
 /*=============================== YAML CONFIG ===============================*/
 
@@ -412,6 +445,30 @@ void stats_collector::load_scap_open(const char* scap_open_args[])
 	{
 		throw std::runtime_error("Failed to fork the SCAP-OPEN!");
 	}
+
+	/* Wait until the scap-open `sys_exit` tracepoint is correctly attached into the kernel */
+	/// TODO: we still need to find some workaround for the kmod, since we cannot use BPFTOOL
+	int attempts = 3;
+	while(true)
+	{
+		sleep(2);
+		int err = system("sudo bpftool perf show | grep -q sys_exit");
+		if(err != 0)
+		{
+			if(attempts == 1)
+			{
+				throw std::runtime_error("The `scap-open` exe is not loaded!");
+			}
+			attempts--;
+			log_info("no `scap-open` loaded. Retry");
+		}
+		else
+		{
+			log_info("`scap-open` correctly loaded!");
+			break;
+		}
+	}
+	sleep(1);
 }
 
 void stats_collector::kill_scap_open()
@@ -484,7 +541,8 @@ stats_collector::stats_collector()
 	case BPFTOOL_MODE:
 		break;
 
-	case REDIS_BENCH_MODE:
+	case REDIS_MODE:
+		/* Right now we don't need any config. */
 		break;
 
 	default:
@@ -497,10 +555,17 @@ stats_collector::~stats_collector()
 	/* Clear the internal loaded document. */
 	m_root = YAML::Node();
 
-	/* Clear the bpf state */
-	stats__destroy(m_skel);
-
 	kill_scap_open();
+
+	switch(m_mode)
+	{
+	case SINGLE_SYSCALL_MODE:
+		stats__destroy(m_skel);
+		break;
+
+	default:
+		break;
+	}
 }
 
 void stats_collector::start_collection()
@@ -518,6 +583,10 @@ void stats_collector::start_collection()
 		{
 		case SINGLE_SYSCALL_MODE:
 			single_syscall_bench();
+			break;
+
+		case REDIS_MODE:
+			redis_bench();
 			break;
 
 		default:

@@ -25,7 +25,24 @@ git submodule update
 * `libaudit`
 * `cmake`
 * `bpftool`
+* `redis-benchmark` if you want to run the `redis` test. You need also the redis-server up and running.
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
+
+## Install phase ⛓️
+
+### Redis
+
+* Install `redis-benchmark` on Ubuntu-like systems:
+
+```bash
+sudo apt install redis
+```
+
+* Redis server should be already up and running
+
+```bash
+sudo netstat -lp | grep redis
+```
 
 ## Build the perf stats tool and its requirements  🏗️
 
@@ -48,7 +65,7 @@ make scap-open
 make bpf
 ```
 
-## Run perf stats tool
+## Run perf stats tool 🏎️
 
 Now you should be ready to run the perf tool.
 
@@ -59,8 +76,7 @@ sudo ./stats
 
 This tool takes the configuration from the YAML file called `stats.yaml`. You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
 
-## TODO
+## TODO 👷
 
 * support bpftool bench
-* support redis bench
 * support a mode in which we generate only syscall, so we can use the tool as a pure syscall generator.
