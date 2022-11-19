@@ -32,7 +32,7 @@ This is how to install the required dependencies for an Ubuntu 22.04 machine:
 
 ```bash
 sudo apt update -y
-sudo apt install -y redis libelf-dev libaudit-dev cmake build-essential clang-14 libtool linux-headers-$(uname -r)
+sudo apt install -y redis libelf-dev libaudit-dev cmake build-essential clang-14 libtool libjsoncpp-dev linux-headers-$(uname -r)
 ```
 
 ## Build the perf stats tool and its requirements  🏗️
