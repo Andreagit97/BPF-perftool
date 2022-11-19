@@ -18,7 +18,7 @@ git submodule init
 git submodule update
 ```
 
-## Requirements
+## Requirements ⛓️
 
 * `libelf`
 * `zlib`
@@ -28,20 +28,11 @@ git submodule update
 * `redis-benchmark` if you want to run the `redis` test. You need also the redis-server up and running.
 * kernel version `>=4.17` (we use raw tracepoints). If you want to use the modern BPF probe and compile it with success you need a kernel `>=5.8`
 
-## Install phase ⛓️
-
-### Redis
-
-* Install `redis-benchmark` on Ubuntu-like systems:
+This is how to install the required dependencies for an Ubuntu 22.04 machine:
 
 ```bash
-sudo apt install redis
-```
-
-* Redis server should be already up and running
-
-```bash
-sudo netstat -lp | grep redis
+sudo apt update -y
+sudo apt install -y redis libelf-dev libaudit-dev cmake build-essential clang-14 libtool linux-headers-$(uname -r)
 ```
 
 ## Build the perf stats tool and its requirements  🏗️

@@ -11,6 +11,7 @@
 #include <iostream>
 #include <fstream>
 #include <ppm_events_public.h>
+#include <signal.h>
 
 #define MODERN_BPF_OPTION "--modern_bpf"
 #define KMOD_OPTION "--kmod"

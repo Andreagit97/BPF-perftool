@@ -151,6 +151,7 @@ add_executable(stats
     userspace/redis_mode.cpp
     userspace/single_syscall_mode.cpp
     userspace/syscall_generator.cpp
+    userspace/manage_scap_open.cpp
 )
 
 set(STATS_INCLUDES
