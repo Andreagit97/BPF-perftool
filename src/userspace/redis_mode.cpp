@@ -10,9 +10,17 @@ void stats_collector::collect_redis_output()
 	std::string value;
 	std::string delimiter = ",";
 	size_t pos = 0;
+	bool first_line = true;
 
 	while(std::getline(infile, line))
 	{
+		/* Here we have a different output according to the redis-bench version */
+		if(first_line)
+		{
+			first_line = false;
+			continue;
+		}
+
 		pos = 0;
 		pos = line.find(delimiter);
 		/* we remove " " with +1 and -1 */
