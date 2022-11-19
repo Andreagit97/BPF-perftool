@@ -47,7 +47,6 @@ void stats_collector::open_load_bpf_skel()
 
 void stats_collector::single_syscall_config()
 {
-	m_single_syscall_args.final_iterations = 0;
 	m_single_syscall_args.final_syscall_time = 0;
 	m_single_syscall_args.samples = get_scalar<uint64_t>("single_syscall_mode.samples", 1024 * 1024 * 30);
 	m_single_syscall_args.syscall_name = get_scalar<std::string>("single_syscall_mode.syscall_name", "");
@@ -132,7 +131,6 @@ void stats_collector::single_syscall_bench()
 	kill_scap_open();
 
 	m_single_syscall_args.final_syscall_time += (m_skel->bss->sum / m_skel->bss->counter);
-	m_single_syscall_args.final_iterations++;
 
 	/* Destroy the BPF skeleton */
 	stats__destroy(m_skel);
@@ -141,14 +139,14 @@ void stats_collector::single_syscall_bench()
 
 void stats_collector::single_syscall_results()
 {
-	uint64_t average = m_single_syscall_args.final_syscall_time / m_single_syscall_args.final_iterations;
+	uint64_t average = m_single_syscall_args.final_syscall_time / m_iterations;
 	std::string filename = m_results_dir + "/single_syscall_" + convert_instrumentation_to_string() + "_" + m_single_syscall_args.syscall_name + ".txt";
-	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_single_syscall_args.final_iterations);
+	log_info("Print results into '" << filename << "', average: " << average << ", iterations: " << m_iterations);
 
 	std::ofstream outfile(filename, std::ios_base::app);
 	outfile << "* Average: " << average << std::endl;
 	outfile << "* Samples per iteration: " << m_single_syscall_args.samples << std::endl;
-	outfile << "* Iterations: " << m_single_syscall_args.final_iterations << std::endl;
+	outfile << "* Iterations: " << m_iterations << std::endl;
 	outfile << "* Syscall: " << m_single_syscall_args.syscall_name << std::endl;
 	outfile << "* Instrumentation: " << convert_instrumentation_to_string() << std::endl;
 	outfile << std::endl;

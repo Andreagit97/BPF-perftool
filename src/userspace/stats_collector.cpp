@@ -339,11 +339,13 @@ stats_collector::~stats_collector()
 void stats_collector::start_collection()
 {
 	/* Repeat the bench `m_iterations` times */
-	while(m_iterations--)
+	int iterations = m_iterations;
+	while(iterations--)
 	{
 		/* Leave some time between an iteration and another */
+		std::cout << std::endl;
 		std::cout << "-------------------" << std::endl;
-		std::cout << "- Iteration n° " << m_iterations << std::endl;
+		std::cout << "- Iteration n° " << iterations << std::endl;
 		std::cout << "-------------------" << std::endl;
 
 		sleep(3);

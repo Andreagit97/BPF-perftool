@@ -68,7 +68,6 @@ struct single_syscall_mode_args
 	uint16_t syscall_id;
 	uint16_t ppm_sc_id;
 	uint64_t final_syscall_time;
-	uint64_t final_iterations;
 };
 
 struct redis_mode_args

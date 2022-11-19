@@ -41,7 +41,6 @@ void stats_collector::redis_bench()
 		pos = line.find(delimiter);
 		/* we remove " " with +1 and -1 */
 		key = line.substr(1, pos - 2);
-		std::cout << key << std::endl;
 		line.erase(0, pos + delimiter.length());
 
 		pos = line.find(delimiter);
@@ -54,7 +53,7 @@ void stats_collector::redis_bench()
 		{
 			value = line.substr(1, pos - 2);
 		}
-		std::cout << value << std::endl;
 		m_redis_args.test_results[key] = std::stod(value);
 	}
+	infile.close();
 }
