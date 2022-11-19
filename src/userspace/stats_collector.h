@@ -2,7 +2,14 @@
 #include <stdint.h>
 #include <memory>
 #include <yaml-cpp/yaml.h>
+#include <stats.skel.h>
+#include <string>
+#include <stdlib.h>
+#include <unistd.h>
 #include <map>
+#include <errno.h>
+#include <iostream>
+#include <fstream>
 #include <ppm_events_public.h>
 
 #define MODERN_BPF_OPTION "--modern_bpf"
@@ -24,6 +31,8 @@
 #define BPF_INSTRUMENTATION_STRING "bpf"
 #define KMOD_INSTRUMENTATION_STRING "kmod"
 #define NO_INSTRUMENTATION_STRING "no_instrumentation"
+
+#define CONF_FILE_PATH "../stats.yaml"
 
 #define log_err(x) std::cerr << LOG_PREFIX << x << std::endl;
 
@@ -119,6 +128,8 @@ private:
 	void single_syscall_bench();
 
 	void single_syscall_results();
+
+	void single_syscall_clean();
 
 	/*=============================== SINGLE SYSCALL MODE ===============================*/
 

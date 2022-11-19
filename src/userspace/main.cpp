@@ -1,13 +1,10 @@
+#include "stats_collector.h"
 #include <bpf/libbpf.h>
-#include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <iostream>
-#include "stats_collector.h"
 
 std::unique_ptr<stats_collector> collector;
 
