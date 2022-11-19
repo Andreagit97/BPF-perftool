@@ -134,7 +134,11 @@ private:
 
 	/*=============================== REDIS BENCH MODE ===============================*/
 
+	void collect_redis_output();
+
 	void redis_bench();
+
+	void redis_results();
 
 	/*=============================== REDIS BENCH MODE ===============================*/
 

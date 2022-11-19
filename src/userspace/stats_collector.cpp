@@ -373,6 +373,10 @@ void stats_collector::collect_stats()
 		single_syscall_results();
 		break;
 
+	case REDIS_MODE:
+		redis_results();
+		break;
+
 	default:
 		break;
 	}

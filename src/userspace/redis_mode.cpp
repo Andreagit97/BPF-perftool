@@ -1,5 +1,38 @@
 #include "stats_collector.h"
 
+void stats_collector::collect_redis_output()
+{
+	std::ifstream infile("../../results/redis.csv");
+	std::string line;
+	std::string key;
+	std::string value;
+	std::string delimiter = ",";
+	size_t pos = 0;
+
+	while(std::getline(infile, line))
+	{
+		pos = 0;
+		pos = line.find(delimiter);
+		/* we remove " " with +1 and -1 */
+		key = line.substr(1, pos - 2);
+		line.erase(0, pos + delimiter.length());
+
+		pos = line.find(delimiter);
+		/* Some old version of redis benchmark had only 2 columns */
+		if(pos == std::string::npos)
+		{
+			value = line.substr(1, line.size() - 2);
+		}
+		else
+		{
+			value = line.substr(1, pos - 2);
+		}
+		/* The value will be the sum of all the iterations */
+		m_redis_args.test_results[key] += std::stod(value);
+	}
+	infile.close();
+}
+
 void stats_collector::redis_bench()
 {
 	/* If we have different iterations we need to kill the scap-open different times */
@@ -26,34 +59,24 @@ void stats_collector::redis_bench()
 	/* We don't need the `scap-open` anymore, killed only if present */
 	kill_scap_open();
 
-	/* Parse the redis bench file */
-	/// TODO: this could become a separated function
-	std::ifstream infile("../../results/redis.csv");
-	std::string line;
-	std::string key;
-	std::string value;
-	std::string delimiter = ",";
-	size_t pos = 0;
+	/* Parse the redis bench CSV file */
+	collect_redis_output();
+}
 
-	while(std::getline(infile, line))
+void stats_collector::redis_results()
+{
+	std::string filename = m_results_dir + "/redis_" + convert_instrumentation_to_string() + ".txt";
+	log_info("Print results into '" << filename << ", iterations: " << m_iterations);
+
+	std::ofstream outfile(filename, std::ios_base::app);
+	outfile << "* Iterations: " << m_iterations << std::endl;
+	outfile << "* Instrumentation: " << convert_instrumentation_to_string() << std::endl;
+
+	for(auto it = m_redis_args.test_results.cbegin(); it != m_redis_args.test_results.cend(); ++it)
 	{
-		pos = 0;
-		pos = line.find(delimiter);
-		/* we remove " " with +1 and -1 */
-		key = line.substr(1, pos - 2);
-		line.erase(0, pos + delimiter.length());
-
-		pos = line.find(delimiter);
-		/* Some old version of redis benchmark had only 2 columns */
-		if(pos == std::string::npos)
-		{
-			value = line.substr(1, line.size() - 2);
-		}
-		else
-		{
-			value = line.substr(1, pos - 2);
-		}
-		m_redis_args.test_results[key] = std::stod(value);
+		outfile << "* " << it->first << " -> " << it->second << std::endl;
 	}
-	infile.close();
+
+	outfile << std::endl;
+	outfile.close();
 }
