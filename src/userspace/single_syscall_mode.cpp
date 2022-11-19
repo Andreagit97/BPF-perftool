@@ -101,7 +101,7 @@ void stats_collector::single_syscall_bench()
 		throw std::runtime_error("Failed to attach the `starting_point` prog");
 	}
 
-	if(m_instrumentation != NO_INSTR)
+	if(m_actual_instrumentation != NO_INSTR)
 	{
 		std::string scap_open_source = get_scap_open_source();
 		std::string driver_path = get_scap_open_driver_path();

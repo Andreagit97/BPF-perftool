@@ -73,7 +73,7 @@ struct single_syscall_mode_args
 
 struct redis_mode_args
 {
-	std::map<std::string, double> test_results;
+	std::map<std::string, double> intrumentation_results;
 };
 
 class stats_collector
@@ -86,12 +86,16 @@ private:
 	pid_t m_scap_open_killed;
 	std::string m_results_dir;
 
-	/* Generic config */
+	/* Benchmark mode */
 	collector_mode m_mode;
-	enum instrumentation_type m_instrumentation;
+	/* List of available instrumentations for that mode. */
+	std::vector<enum instrumentation_type> m_available_instrumentations;
+	/* Actual instrumentation used by the bench run */
+	enum instrumentation_type m_actual_instrumentation;
+
 	bool m_verbose;
 	std::string m_old_probe_path;
-	uint64_t m_iterations;
+	uint32_t m_iterations;
 	std::string m_scap_open_path;
 
 	/* Specific config */
@@ -113,7 +117,11 @@ private:
 
 	std::string convert_mode_to_string();
 
-	void convert_instrumentation_from_string(const std::string& key);
+	void set_available_instrumentations();
+
+	std::string convert_available_instrumentations_to_string();
+
+	// void convert_instrumentation_from_string(const std::string& key);
 
 	std::string convert_instrumentation_to_string();
 

@@ -1,9 +1,10 @@
 #include "stats_collector.h"
 #include <sys/syscall.h>
 
+/* Set `scap-open` according to the actual instrumentation. */
 std::string stats_collector::get_scap_open_source()
 {
-	switch(m_instrumentation)
+	switch(m_actual_instrumentation)
 	{
 	case MODERN_BPF_INSTR:
 		return MODERN_BPF_OPTION;
@@ -22,7 +23,7 @@ std::string stats_collector::get_scap_open_source()
 
 std::string stats_collector::get_scap_open_driver_path()
 {
-	switch(m_instrumentation)
+	switch(m_actual_instrumentation)
 	{
 	case MODERN_BPF_INSTR:
 		return "";

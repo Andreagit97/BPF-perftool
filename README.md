@@ -71,3 +71,4 @@ This tool takes the configuration from the YAML file called `stats.yaml`. You ca
 
 * support bpftool bench
 * support a mode in which we generate only syscall, so we can use the tool as a pure syscall generator.
+* write some tests

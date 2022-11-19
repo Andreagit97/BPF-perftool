@@ -1,4 +1,5 @@
 #include "stats_collector.h"
+#include <sstream>
 
 /*=============================== CONFIGS ===============================*/
 
@@ -45,34 +46,34 @@ std::string stats_collector::convert_mode_to_string()
 	}
 }
 
-void stats_collector::convert_instrumentation_from_string(const std::string& key)
-{
-	m_instrumentation = UNKNOWN_INSTR;
-	if(key.compare(NO_INSTRUMENTATION_STRING) == 0)
-	{
-		m_instrumentation = NO_INSTR;
-	}
-	else if(key.compare(MODERN_BPF_INSTRUMENTATION_STRING) == 0)
-	{
-		m_instrumentation = MODERN_BPF_INSTR;
-	}
-	else if(key.compare(BPF_INSTRUMENTATION_STRING) == 0)
-	{
-		m_instrumentation = BPF_INSTR;
-	}
-	else if(key.compare(KMOD_INSTRUMENTATION_STRING) == 0)
-	{
-		m_instrumentation = KMOD_INSTR;
-	}
-	else
-	{
-		throw std::runtime_error("Unknown instrumentation selected!");
-	}
-}
+// void stats_collector::convert_instrumentation_from_string(const std::string& key)
+// {
+// 	m_instrumentation = UNKNOWN_INSTR;
+// 	if(key.compare(NO_INSTRUMENTATION_STRING) == 0)
+// 	{
+// 		m_instrumentation = NO_INSTR;
+// 	}
+// 	else if(key.compare(MODERN_BPF_INSTRUMENTATION_STRING) == 0)
+// 	{
+// 		m_instrumentation = MODERN_BPF_INSTR;
+// 	}
+// 	else if(key.compare(BPF_INSTRUMENTATION_STRING) == 0)
+// 	{
+// 		m_instrumentation = BPF_INSTR;
+// 	}
+// 	else if(key.compare(KMOD_INSTRUMENTATION_STRING) == 0)
+// 	{
+// 		m_instrumentation = KMOD_INSTR;
+// 	}
+// 	else
+// 	{
+// 		throw std::runtime_error("Unknown instrumentation selected!");
+// 	}
+// }
 
 std::string stats_collector::convert_instrumentation_to_string()
 {
-	switch(m_instrumentation)
+	switch(m_actual_instrumentation)
 	{
 	case UNKNOWN_INSTR:
 		return UNKNOWN_INSTRUMENTATION_STRING;
@@ -91,6 +92,74 @@ std::string stats_collector::convert_instrumentation_to_string()
 
 	default:
 		throw std::runtime_error("Unknown instrumentation selected!");
+		break;
+	}
+}
+
+std::string stats_collector::convert_available_instrumentations_to_string()
+{
+	std::stringstream ss_instrumentation_list_string;
+	std::string list_string;
+
+	for(auto instr : m_available_instrumentations)
+	{
+		switch(instr)
+		{
+		case NO_INSTR:
+			ss_instrumentation_list_string << NO_INSTRUMENTATION_STRING << ", ";
+			break;
+
+		case MODERN_BPF_INSTR:
+			ss_instrumentation_list_string << MODERN_BPF_INSTRUMENTATION_STRING << ", ";
+			break;
+
+		case BPF_INSTR:
+			ss_instrumentation_list_string << BPF_INSTRUMENTATION_STRING << ", ";
+			break;
+
+		case KMOD_INSTR:
+			ss_instrumentation_list_string << KMOD_INSTRUMENTATION_STRING << ", ";
+			break;
+
+		default:
+			throw std::runtime_error("Unknown instrumentation type!");
+			break;
+		}
+	}
+
+	list_string = ss_instrumentation_list_string.str();
+	if(list_string.empty())
+	{
+		throw std::runtime_error("Empty instrumentation list!");
+	}
+	else
+	{
+		/* Remove last two chars ", " */
+		list_string.pop_back();
+		list_string.pop_back();
+	}
+	return list_string;
+}
+
+void stats_collector::set_available_instrumentations()
+{
+	switch(m_mode)
+	{
+	case SINGLE_SYSCALL_MODE:
+		m_available_instrumentations.push_back(MODERN_BPF_INSTR);
+		m_available_instrumentations.push_back(BPF_INSTR);
+		m_available_instrumentations.push_back(NO_INSTR);
+		break;
+
+	case REDIS_MODE:
+		m_available_instrumentations.push_back(MODERN_BPF_INSTR);
+		m_available_instrumentations.push_back(BPF_INSTR);
+		m_available_instrumentations.push_back(NO_INSTR);
+		break;
+
+	case UNKNOWN_MODE:
+	default:
+		throw std::runtime_error("Unknown testing mode selected!");
 		break;
 	}
 }
@@ -177,11 +246,7 @@ stats_collector::stats_collector()
 	/* Retrieve the old probe path */
 	m_old_probe_path = get_scalar<std::string>("old_probe_path", "");
 
-	/* Retrieve the instrumentation type */
-	std::string instrumentation_string = get_scalar<std::string>("instrumentation", "");
-	convert_instrumentation_from_string(instrumentation_string);
-
-	/* How many times we need to run the perf test */
+	/* How many times we need to run the perf test for that instrumentation */
 	m_iterations = get_scalar<uint64_t>("iterations", 1);
 
 	/* Directory where we will save our bench results */
@@ -190,10 +255,11 @@ stats_collector::stats_collector()
 	/* Retrieve the selected mode */
 	std::string mode_string = get_scalar<std::string>("mode", "");
 	convert_mode_from_string(mode_string);
+	set_available_instrumentations();
 
-	log_info("Instrumentation type: " << convert_instrumentation_to_string());
-	log_info("Total iterations: " << m_iterations);
 	log_info("Chosen mode: " << convert_mode_to_string());
+	log_info("Available instrumentations: " << convert_available_instrumentations_to_string());
+	log_info("Iterations for every intrumentation: " << m_iterations);
 
 	/*
 	 * Retrieve specific-mode config
@@ -204,14 +270,12 @@ stats_collector::stats_collector()
 		single_syscall_config();
 		break;
 
-	case BPFTOOL_MODE:
-		break;
-
 	case REDIS_MODE:
 		/* Right now we don't need any config. */
 		break;
 
 	default:
+		throw std::runtime_error("Unknown mode!");
 		break;
 	}
 }
@@ -236,30 +300,18 @@ stats_collector::~stats_collector()
 
 void stats_collector::start_collection()
 {
-	/* Repeat the bench `m_iterations` times */
-	int iterations = m_iterations;
-	while(iterations--)
+	switch(m_mode)
 	{
-		/* Leave some time between an iteration and another */
-		std::cout << std::endl;
-		std::cout << "-------------------" << std::endl;
-		std::cout << "- Iteration n° " << iterations << std::endl;
-		std::cout << "-------------------" << std::endl;
+	case SINGLE_SYSCALL_MODE:
+		// single_syscall_bench();
+		break;
 
-		sleep(3);
-		switch(m_mode)
-		{
-		case SINGLE_SYSCALL_MODE:
-			single_syscall_bench();
-			break;
+	case REDIS_MODE:
+		redis_bench();
+		break;
 
-		case REDIS_MODE:
-			redis_bench();
-			break;
-
-		default:
-			break;
-		}
+	default:
+		break;
 	}
 }
 
@@ -272,7 +324,7 @@ void stats_collector::collect_stats()
 		break;
 
 	case REDIS_MODE:
-		redis_results();
+		// redis_results();
 		break;
 
 	default:

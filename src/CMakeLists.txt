@@ -34,6 +34,12 @@ if(RESULT STREQUAL NOTFOUND)
     message(FATAL_ERROR "problem with libaudit.cmake in ${CMAKE_MODULE_PATH}")
 endif()
 
+include(jsoncpp RESULT_VARIABLE RESULT)
+
+if(RESULT STREQUAL NOTFOUND)
+    message(FATAL_ERROR "problem with jsoncpp.cmake in ${CMAKE_MODULE_PATH}")
+endif()
+
 # ################################
 # BPF part
 # ################################
@@ -157,6 +163,7 @@ add_executable(stats
 set(STATS_INCLUDES
     "${ZLIB_INCLUDE}"
     "${LIBAUDIT_INCLUDE}"
+    "${JSONCPP_INCLUDE}"
     "${LIBBPF_INCLUDE}"
     "${SKEL_DIR}"
     ${CMAKE_CURRENT_SOURCE_DIR}/../libs/driver
@@ -168,4 +175,4 @@ target_include_directories(stats
 )
 
 add_dependencies(stats libbpf yamlcpp zlib ProbeSkeleton)
-target_link_libraries(stats "${ZLIB_LIB}" "${LIBBPF_LIB}" "${LIBAUDIT_LIB}" "${YAMLCPP_LIB}" elf z)
+target_link_libraries(stats "${ZLIB_LIB}" "${LIBBPF_LIB}" "${LIBAUDIT_LIB}" "${YAMLCPP_LIB}" "${JSONCPP_LIB}" elf z)
