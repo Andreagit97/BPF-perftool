@@ -85,7 +85,6 @@ void stats_collector::redis_bench()
 			/* Parse the redis bench CSV file */
 			collect_redis_output();
 		}
-		/* Here we need to write a json file */
 		redis_results();
 	}
 }

@@ -175,8 +175,6 @@ public:
 	~stats_collector();
 
 	void start_collection();
-
-	void collect_stats();
 };
 
 std::unique_ptr<stats_collector> get_stats_collector();

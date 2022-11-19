@@ -303,28 +303,11 @@ void stats_collector::start_collection()
 	switch(m_mode)
 	{
 	case SINGLE_SYSCALL_MODE:
-		// single_syscall_bench();
+		single_syscall_bench();
 		break;
 
 	case REDIS_MODE:
 		redis_bench();
-		break;
-
-	default:
-		break;
-	}
-}
-
-void stats_collector::collect_stats()
-{
-	switch(m_mode)
-	{
-	case SINGLE_SYSCALL_MODE:
-		single_syscall_results();
-		break;
-
-	case REDIS_MODE:
-		// redis_results();
 		break;
 
 	default:

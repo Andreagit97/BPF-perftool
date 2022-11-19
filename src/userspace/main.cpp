@@ -27,8 +27,6 @@ int main(int argc, char **argv)
 		collector = get_stats_collector();
 
 		collector->start_collection();
-
-		collector->collect_stats();
 	}
 	catch(std::exception &e)
 	{
