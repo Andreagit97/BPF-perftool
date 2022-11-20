@@ -16,6 +16,7 @@ int32_t target_pid = -1;
 uint32_t counter = 0;
 uint64_t sum = 0;
 uint64_t enter_time = 0;
+int sys_exit_enabled = 0;
 
 struct sys_enter_args
 {
@@ -91,5 +92,32 @@ int exit_point(struct sys_exit_args *ctx)
 	 */
 	sum += (bpf_ktime_get_boot_ns() - enter_time);
 	counter++;
+	return 0;
+}
+
+/* This program is used to check if the `scap-open` has already attached the `sys_exit` tracepoint. */
+SEC("fexit/tracepoint_probe_register")
+int BPF_PROG(probe_sys_exit_attach, struct tracepoint *tp, void *probe, void *data, long ret)
+{
+	char tracepoint_target[8] = "sys_exit";
+	char tracepoint_name[8] = {0};
+	bpf_probe_read((void *)tracepoint_name, 8, tp->name);
+
+	/* the call must be successful */
+	if(ret != 0)
+	{
+		return 0;
+	}
+
+	for(int i = 0; i < 8; i++)
+	{
+		if(tracepoint_name[i] != tracepoint_target[i])
+		{
+			return 0;
+		}
+	}
+
+	/* if the right tracepoint is attached we are to go. */
+	sys_exit_enabled = 1;
 	return 0;
 }

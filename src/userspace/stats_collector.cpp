@@ -121,12 +121,14 @@ void stats_collector::set_available_instrumentations()
 	switch(m_mode)
 	{
 	case SINGLE_SYSCALL_MODE:
+		m_available_instrumentations.push_back(KMOD_INSTR);
 		m_available_instrumentations.push_back(MODERN_BPF_INSTR);
 		m_available_instrumentations.push_back(BPF_INSTR);
 		m_available_instrumentations.push_back(NO_INSTR);
 		break;
 
 	case REDIS_MODE:
+		m_available_instrumentations.push_back(KMOD_INSTR);
 		m_available_instrumentations.push_back(MODERN_BPF_INSTR);
 		m_available_instrumentations.push_back(BPF_INSTR);
 		m_available_instrumentations.push_back(NO_INSTR);

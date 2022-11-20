@@ -39,6 +39,7 @@ void stats_collector::open_load_bpf_skel()
 	m_skel->bss->counter = 0;
 	m_skel->bss->sum = 0;
 	m_skel->bss->enter_time = 0;
+	m_skel->bss->sys_exit_enabled = 0;
 
 	int err = stats__load(m_skel);
 	if(err)
@@ -112,11 +113,24 @@ void stats_collector::single_syscall_bench()
 
 			if(m_actual_instrumentation != NO_INSTR)
 			{
+				/* This program will check when the scap-open attaches its `sys_exit` tracepoint. */
+				m_skel->links.probe_sys_exit_attach = bpf_program__attach(m_skel->progs.probe_sys_exit_attach);
+				if(!m_skel->links.probe_sys_exit_attach)
+				{
+					throw std::runtime_error("Failed to attach the `probe_sys_exit_attach` prog");
+				}
+
 				std::string scap_open_source = get_scap_open_source();
 				std::string driver_path = get_scap_open_driver_path();
 
 				const char* scap_open_args[] = {"scap-open", scap_open_source.c_str(), driver_path.c_str(), TRACEPOINT_OPTION, "0", TRACEPOINT_OPTION, "1", PPM_SC_OPTION, std::to_string(m_single_syscall_args.ppm_sc_id).c_str(), NULL};
 				load_scap_open(scap_open_args);
+
+				/* Wait until the `sys_exit` is loaded. */
+				while(m_skel->bss->sys_exit_enabled == 0)
+				{
+					sleep(1);
+				}
 			}
 
 			/* Attach the `sys_exit` tracepoint after the scap-open. */

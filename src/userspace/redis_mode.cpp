@@ -78,6 +78,8 @@ void stats_collector::redis_bench()
 				/* We run it with the simple_set mode since in this way we are considering a compatible set of syscalls. */
 				const char* scap_open_args[] = {"scap-open", scap_open_source.c_str(), driver_path.c_str(), SIMPLE_SET_OPTION, NULL};
 				load_scap_open(scap_open_args);
+				/* Wait for the scap-open to be loaded */
+				sleep(2);
 			}
 
 			/* Launch redis benchmark */
