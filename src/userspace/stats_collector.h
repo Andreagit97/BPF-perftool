@@ -74,6 +74,7 @@ struct single_syscall_mode_args
 struct redis_mode_args
 {
 	std::map<std::string, double> intrumentation_results;
+	uint64_t requests;
 };
 
 class stats_collector
@@ -95,7 +96,7 @@ private:
 
 	bool m_verbose;
 	std::string m_old_probe_path;
-	uint32_t m_iterations;
+	uint64_t m_iterations;
 	std::string m_scap_open_path;
 
 	/* Specific config */
@@ -146,6 +147,8 @@ private:
 	void collect_redis_output();
 
 	void redis_bench();
+
+	void redis_config();
 
 	void redis_results();
 

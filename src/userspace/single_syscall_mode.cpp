@@ -82,7 +82,7 @@ void stats_collector::single_syscall_bench()
 	{
 		m_actual_instrumentation = instr;
 		/* Repeat the bench `m_iterations` times */
-		int iterations = m_iterations;
+		uint64_t iterations = m_iterations;
 		while(iterations--)
 		{
 			/* If we have different iterations we need to kill the scap-open different times */
@@ -159,7 +159,7 @@ void stats_collector::single_syscall_results()
 	Json::StyledWriter styledWriter;
 
 	std::ofstream outfile(filename);
-	event["Iterations"] = m_iterations;
+	event["Iterations"] = Json::UInt64(m_iterations);
 	event["Instrumentation"] = convert_instrumentation_to_string();
 	event["SyscallName"] = m_single_syscall_args.syscall_name;
 	event["Average"] = average;

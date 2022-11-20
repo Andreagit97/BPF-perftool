@@ -43,13 +43,21 @@ void stats_collector::collect_redis_output()
 	infile.close();
 }
 
+void stats_collector::redis_config()
+{
+	m_redis_args.requests = get_scalar<uint64_t>("redis_mode.requests", 1000000);
+
+	/* Log some info about the configuration */
+	log_info("- requests: " << m_redis_args.requests);
+}
+
 void stats_collector::redis_bench()
 {
 	for(auto instr : m_available_instrumentations)
 	{
 		m_actual_instrumentation = instr;
 		/* Repeat the bench `m_iterations` times */
-		int iterations = m_iterations;
+		int64_t iterations = m_iterations;
 		while(iterations--)
 		{
 			/* Leave some time between an iteration and another */
@@ -73,7 +81,8 @@ void stats_collector::redis_bench()
 			}
 
 			/* Launch redis benchmark */
-			int err = system("redis-benchmark -q -n 10000 -t set,get --csv > ../../results/redis.csv");
+			std::string redis_command = "redis-benchmark -q -n " + std::to_string(m_redis_args.requests) + " -t set,get --csv > " + m_results_dir + "/redis.csv";
+			int err = system(redis_command.c_str());
 			if(err != 0)
 			{
 				log_err("Redis benchmak issues! Maybe you need to start the Redis server...");
@@ -98,8 +107,9 @@ void stats_collector::redis_results()
 	Json::StyledWriter styledWriter;
 
 	std::ofstream outfile(filename);
-	event["Iterations"] = m_iterations;
+	event["Iterations"] = Json::UInt64(m_iterations);
 	event["Instrumentation"] = convert_instrumentation_to_string();
+	event["Requests"] = Json::UInt64(m_redis_args.requests);
 	for(auto it = m_redis_args.intrumentation_results.cbegin(); it != m_redis_args.intrumentation_results.cend(); ++it)
 	{
 		event[it->first] = (double)(it->second / (double)m_iterations);

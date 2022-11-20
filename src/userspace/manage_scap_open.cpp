@@ -53,26 +53,32 @@ void stats_collector::load_scap_open(const char* scap_open_args[])
 		throw std::runtime_error("Failed to fork the SCAP-OPEN!");
 	}
 
-	/* Wait until the scap-open `sys_exit` tracepoint is correctly attached into the kernel */
-	/// TODO: we still need to find some workaround for the kmod, since we cannot use BPFTOOL
-	int attempts = 3;
-	while(true)
+	/* For the kmod right now we don't have a way to detect the loading of tracepoints
+	 * This works for redis-bench but it doesn't work for syscall one.
+	 */
+	if(m_actual_instrumentation != KMOD_INSTR)
 	{
-		sleep(2);
-		int err = system("sudo bpftool perf show | grep -q sys_exit");
-		if(err != 0)
+		/* Wait until the scap-open `sys_exit` tracepoint is correctly attached into the kernel */
+		/// TODO: we still need to find some workaround for the kmod, since we cannot use BPFTOOL
+		int attempts = 3;
+		while(true)
 		{
-			if(attempts == 1)
+			sleep(2);
+			int err = system("sudo bpftool perf show | grep -q sys_exit");
+			if(err != 0)
 			{
-				throw std::runtime_error("The `scap-open` exe is not loaded!");
+				if(attempts == 1)
+				{
+					throw std::runtime_error("The `scap-open` exe is not loaded!");
+				}
+				attempts--;
+				log_info("no `scap-open` loaded. Retry");
 			}
-			attempts--;
-			log_info("no `scap-open` loaded. Retry");
-		}
-		else
-		{
-			log_info("`scap-open` correctly loaded!");
-			break;
+			else
+			{
+				log_info("`scap-open` correctly loaded!");
+				break;
+			}
 		}
 	}
 	sleep(1);

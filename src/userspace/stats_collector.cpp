@@ -46,31 +46,6 @@ std::string stats_collector::convert_mode_to_string()
 	}
 }
 
-// void stats_collector::convert_instrumentation_from_string(const std::string& key)
-// {
-// 	m_instrumentation = UNKNOWN_INSTR;
-// 	if(key.compare(NO_INSTRUMENTATION_STRING) == 0)
-// 	{
-// 		m_instrumentation = NO_INSTR;
-// 	}
-// 	else if(key.compare(MODERN_BPF_INSTRUMENTATION_STRING) == 0)
-// 	{
-// 		m_instrumentation = MODERN_BPF_INSTR;
-// 	}
-// 	else if(key.compare(BPF_INSTRUMENTATION_STRING) == 0)
-// 	{
-// 		m_instrumentation = BPF_INSTR;
-// 	}
-// 	else if(key.compare(KMOD_INSTRUMENTATION_STRING) == 0)
-// 	{
-// 		m_instrumentation = KMOD_INSTR;
-// 	}
-// 	else
-// 	{
-// 		throw std::runtime_error("Unknown instrumentation selected!");
-// 	}
-// }
-
 std::string stats_collector::convert_instrumentation_to_string()
 {
 	switch(m_actual_instrumentation)
@@ -271,7 +246,7 @@ stats_collector::stats_collector()
 		break;
 
 	case REDIS_MODE:
-		/* Right now we don't need any config. */
+		redis_config();
 		break;
 
 	default:
