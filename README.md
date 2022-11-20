@@ -54,6 +54,8 @@ mkdir build && cd build
 cmake -DUSE_BUNDLED_DEPS=ON -DBUILD_LIBSCAP_MODERN_BPF=ON  -DBUILD_LIBSCAP_GVISOR=Off -DBUILD_BPF=True ..
 make scap-open
 make bpf
+make driver
+sudo insmod ./driver/scap.ko
 ```
 
 ## Run perf stats tool 🏎️
