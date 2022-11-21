@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io/fs"
 	"io/ioutil"
 	"os"
@@ -10,6 +11,10 @@ import (
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/plotutil"
+	"gonum.org/v1/plot/vg"
 )
 
 const (
@@ -154,74 +159,59 @@ func writeRedisReport(stats RedisStats, output *RedisOutput) error {
 	return nil
 }
 
-// func plotRedis() {
-// 	p := plot.New()
-// 	p.Title.Text = "Redis Bench requests(" + string(redisStats.Requests) + ") iterations (" + string(redisStats.Iterations) + ")"
-// 	p.Y.Label.Text = "Requests per second"
-// 	w := vg.Points(20)
+func plotRedisReport(output RedisOutput) error {
 
-// 	barsA, err := plotter.NewBarChart(groupA, w)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+	p := plot.New()
+	p.Title.Text = "Redis Bench requests(" + fmt.Sprint(output.Requests) + ") iterations (" + fmt.Sprint(output.Iterations) + ")"
+	p.Y.Label.Text = "Requests per second ratio"
+	w := vg.Points(20)
+	p.X.Max = 2
 
-// 	modernBPFGetRatio := computeRatio(redisStats.GetData[modernBPFInstr], redisStats.GetData[noInstr])
-// 	modernBPFSetRatio := computeRatio(redisStats.SetData[modernBPFInstr], redisStats.SetData[noInstr])
+	valuesModern := plotter.Values{output.ModernBPFRatio[GETTag], output.ModernBPFRatio[SETTag]}
+	valuesBpf := plotter.Values{output.BPFRatio[GETTag], output.BPFRatio[SETTag]}
+	valuesKmod := plotter.Values{output.KmodRatio[GETTag], output.KmodRatio[SETTag]}
 
-// 	BPFGetRatio := computeRatio(redisStats.GetData[BPFInstr], redisStats.GetData[noInstr])
-// 	BPFSetRatio := computeRatio(redisStats.GetData[BPFInstr], redisStats.GetData[noInstr])
+	columnModern, err := plotter.NewBarChart(valuesModern, w)
+	if err != nil {
+		log.Fatal("Unable to create Modern column: ", err)
+		return err
+	}
+	columnModern.LineStyle.Width = vg.Length(0)
+	columnModern.Color = plotutil.Color(0)
+	columnModern.Offset = -w
 
-// 	KmodGetRatio := computeRatio(redisStats.GetData[kmodInstr], redisStats.GetData[noInstr])
-// 	KmodSetRatio := computeRatio(redisStats.GetData[kmodInstr], redisStats.GetData[noInstr])
+	columnBpf, err := plotter.NewBarChart(valuesBpf, w)
+	if err != nil {
+		log.Fatal("Unable to create Bpf column: ", err)
+		return err
+	}
+	columnBpf.LineStyle.Width = vg.Length(0)
+	columnBpf.Color = plotutil.Color(1)
 
-// 	// modernBPF := plotter.Values{redisStats.GetData[modernBPFInstr], redisStats.SetData[modernBPFInstr]}
-// 	// modernBPF := plotter.Values{redisStats.GetData[modernBPFInstr], redisStats.SetData[modernBPFInstr]}
+	columnKmod, err := plotter.NewBarChart(valuesKmod, w)
+	if err != nil {
+		log.Fatal("Unable to create Kmod column: ", err)
+		return err
+	}
+	columnKmod.LineStyle.Width = vg.Length(0)
+	columnKmod.Color = plotutil.Color(2)
+	columnKmod.Offset = w
 
-// 	groupA := plotter.Values{25, 32, 34, 20, 25}
-// 	groupB := plotter.Values{25, 32, 34, 20, 25}
-// 	groupC := plotter.Values{12, 28, 15, 21, 8}
+	p.Add(columnModern, columnBpf, columnKmod)
+	p.Legend.Add("Modern BPF", columnModern)
+	p.Legend.Add("BPF", columnBpf)
+	p.Legend.Add("Kmod", columnKmod)
+	p.Legend.Top = true
+	p.NominalX("Get", "Set")
 
-// 	p := plot.New()
+	redis_out := redisOutputfile + *outputSuffix + ".png"
 
-// 	p.Title.Text = "Bar chart"
-// 	p.Y.Label.Text = "Heights"
-
-// 	w := vg.Points(10)
-
-// 	barsA, err := plotter.NewBarChart(groupA, w)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	barsA.LineStyle.Width = vg.Length(0)
-// 	barsA.Color = plotutil.Color(0)
-// 	barsA.Offset = -w
-
-// 	barsB, err := plotter.NewBarChart(groupB, w)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	barsB.LineStyle.Width = vg.Length(0)
-// 	barsB.Color = plotutil.Color(1)
-
-// 	barsC, err := plotter.NewBarChart(groupC, w)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-// 	barsC.LineStyle.Width = vg.Length(0)
-// 	barsC.Color = plotutil.Color(2)
-// 	barsC.Offset = w
-
-// 	p.Add(barsA, barsB, barsC)
-// 	p.Legend.Add("Group A", barsA)
-// 	p.Legend.Add("Group B", barsB)
-// 	p.Legend.Add("Group C", barsC)
-// 	p.Legend.Top = true
-// 	p.NominalX("One", "Two", "Three", "Four", "Five")
-
-// 	if err := p.Save(5*vg.Inch, 3*vg.Inch, "barchart2.png"); err != nil {
-// 		panic(err)
-// 	}
-// }
+	if err := p.Save(512, 512, redis_out); err != nil {
+		log.Fatal("Unable to create Kmod column: ", err)
+		return err
+	}
+	return nil
+}
 
 func init() {
 	cwd, err := os.Getwd()
@@ -249,8 +239,10 @@ func main() {
 			os.Exit(1)
 		}
 
-		// if err := plotRedisReport(redisOutput); err != nil {
-		// 	os.Exit(1)
-		// }
+		if err := plotRedisReport(redisOutput); err != nil {
+			os.Exit(1)
+		}
+
+		log.Info("Generated Redis report and plot")
 	}
 }
