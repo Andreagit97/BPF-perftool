@@ -18,27 +18,34 @@ import (
 )
 
 const (
-	redisPrefix     = "redis_bench"
-	redisOutputfile = "redis_report"
 
 	/* Intrumentations */
 	modernBPFInstr = "modern_bpf"
-	BPFInstr       = "kmod"
-	kmodInstr      = "bpf"
+	BPFInstr       = "bpf"
+	kmodInstr      = "kmod"
 	noInstr        = "no_instrumentation"
 
-	/* Redis JSON tags */
-	instrTag      = "Instrumentation"
-	GETTag        = "GET"
-	SETTag        = "SET"
-	requestsTag   = "Requests"
-	iterationsTag = "Iterations"
+	/* Json tags */
+	instrTag       = "Instrumentation"
+	iterationsTag  = "Iterations"
+	GETTag         = "GET"
+	SETTag         = "SET"
+	requestsTag    = "Requests"
+	samplesTag     = "Samples"
+	averageTag     = "Average"
+	syscallNameTag = "SyscallName"
+
+	/* Redis Configs */
+	redisPrefix     = "redis_bench"
+	redisOutputfile = "redis_report"
+
+	/* Syscall Configs */
+	syscallsPrefix     = "single_syscall"
+	syscallsOutputfile = "syscalls_report"
 )
 
 var (
-	resultsDir *string
-	// redisStats   RedisStats
-	syscallStats map[string]SyscallData
+	resultsDir   *string
 	outputSuffix *string
 )
 
@@ -59,10 +66,19 @@ type RedisOutput struct {
 	Iterations      float64            `json:"iterations"`
 }
 
-type SyscallData struct {
+type SyscallStats struct {
 	Intrumentations map[string]float64 `json:"instrumentations"`
-	Samples         uint64             `json:"samples"`
-	Iterations      uint64             `json:"iterations"`
+	Samples         float64            `json:"samples"`
+	Iterations      float64            `json:"iterations"`
+}
+
+type SyscallOutput struct {
+	ModernBPFDiff  float64 `json:"ModernBPFDiff"`
+	BPFDiff        float64 `json:"bpfDiff"`
+	KmodDiff       float64 `json:"kmodDiff"`
+	NoInstrAverage float64 `json:"noInstrAverage"`
+	Samples        float64 `json:"samples"`
+	Iterations     float64 `json:"iterations"`
 }
 
 func computeRatio(minor, major float64) float64 {
@@ -213,6 +229,76 @@ func plotRedisReport(output RedisOutput) error {
 	return nil
 }
 
+func parseSyscallStats(stats map[string]SyscallStats) error {
+	syscallsFiles := SearchFiles(*resultsDir, func(s string) bool {
+		return filepath.Ext(s) == ".json" && strings.Contains(s, syscallsPrefix)
+	})
+
+	if len(syscallsFiles) == 0 {
+		log.Info("No Syscall file to parse")
+		return nil
+	}
+
+	for _, file := range syscallsFiles {
+		jsonFile, err := os.Open(file)
+		if err != nil {
+			log.Fatal("Unable to open file '", file, "': ", err)
+			return err
+		}
+		defer jsonFile.Close()
+
+		byteValue, _ := ioutil.ReadAll(jsonFile)
+		var result map[string]interface{}
+		err = json.Unmarshal([]byte(byteValue), &result)
+		if err != nil {
+			log.Fatal("Unable to unmarshal file '", file, "': ", err)
+			return err
+		}
+
+		/* check if the syscall struct is already there otherwise we have to create it */
+		syscallStat, ok := stats[result[syscallNameTag].(string)]
+		if !ok {
+			syscallStat = SyscallStats{}
+			syscallStat.Intrumentations = make(map[string]float64)
+		}
+		syscallStat.Intrumentations[result[instrTag].(string)] = result[averageTag].(float64)
+		syscallStat.Samples = result[samplesTag].(float64)
+		syscallStat.Iterations = result[iterationsTag].(float64)
+		stats[result[syscallNameTag].(string)] = syscallStat
+	}
+	return nil
+}
+
+func writeSyscallReport(stats map[string]SyscallStats, output map[string]SyscallOutput) error {
+
+	for syscallName, syscallStats := range stats {
+		syscallOutput := SyscallOutput{}
+
+		syscallOutput.ModernBPFDiff = syscallStats.Intrumentations[modernBPFInstr] - syscallStats.Intrumentations[noInstr]
+		syscallOutput.BPFDiff = syscallStats.Intrumentations[BPFInstr] - syscallStats.Intrumentations[noInstr]
+		syscallOutput.KmodDiff = syscallStats.Intrumentations[kmodInstr] - syscallStats.Intrumentations[noInstr]
+
+		syscallOutput.NoInstrAverage = syscallStats.Intrumentations[noInstr]
+		syscallOutput.Samples = syscallStats.Samples
+		syscallOutput.Iterations = syscallStats.Iterations
+
+		output[syscallName] = syscallOutput
+	}
+
+	content, err := json.MarshalIndent(output, "", "	")
+	if err != nil {
+		log.Fatal("Unable to marshal syscalls output: ", err)
+		return err
+	}
+
+	syscalls_out := syscallsOutputfile + *outputSuffix + ".json"
+	if err := ioutil.WriteFile(syscalls_out, content, 0644); err != nil {
+		log.Fatal("Unable to write the syscalls results: ", err)
+		return err
+	}
+	return nil
+}
+
 func init() {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -244,5 +330,20 @@ func main() {
 		}
 
 		log.Info("Generated Redis report and plot")
+	}
+
+	syscallsStats := make(map[string]SyscallStats)
+	syscallsOutput := make(map[string]SyscallOutput)
+
+	if err := parseSyscallStats(syscallsStats); err != nil {
+		os.Exit(1)
+	}
+
+	/* we write reports and plot data only if we have available stats */
+	if len(syscallsStats) != 0 {
+		if err := writeSyscallReport(syscallsStats, syscallsOutput); err != nil {
+			os.Exit(1)
+		}
+		log.Info("Generated Syscalls report")
 	}
 }
