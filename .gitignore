@@ -3,3 +3,5 @@
 /build
 /src/build
 /results
+/utils/*.json
+/utils/*.png
