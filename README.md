@@ -69,8 +69,13 @@ sudo ./stats
 
 This tool takes the configuration from the YAML file called `stats.yaml`. You can simply change the params in this YAML file and run again the `stats` executable without recompiling anything
 
-## TODO 👷
+## Analyze stats
 
-* support bpftool bench
-* support a mode in which we generate only syscall, so we can use the tool as a pure syscall generator.
-* write some tests
+Go to the `util` directory:
+
+```bash
+go build
+go run .
+```
+
+This should generate a `json` summary in the "result" directory (the default one is `results`, but you can change it in the `stats.yaml` config)

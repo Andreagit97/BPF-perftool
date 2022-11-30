@@ -101,7 +101,11 @@ int BPF_PROG(probe_sys_exit_attach, struct tracepoint *tp, void *probe, void *da
 {
 	char tracepoint_target[8] = "sys_exit";
 	char tracepoint_name[8] = {0};
-	bpf_probe_read((void *)tracepoint_name, 8, tp->name);
+	if(bpf_probe_read((void *)tracepoint_name, 8, tp->name) != 0)
+	{
+		bpf_printk("Fail to read tracepoint name!");
+		return 0;
+	}
 
 	/* the call must be successful */
 	if(ret != 0)

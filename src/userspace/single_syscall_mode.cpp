@@ -82,6 +82,7 @@ void stats_collector::single_syscall_bench()
 	for(auto instr : m_available_instrumentations)
 	{
 		m_actual_instrumentation = instr;
+		log_info("- Instrumentation: " << convert_instrumentation_to_string() << " , iterations: " << m_iterations);
 		/* Repeat the bench `m_iterations` times */
 		uint64_t iterations = m_iterations;
 		while(iterations--)
@@ -127,10 +128,12 @@ void stats_collector::single_syscall_bench()
 				load_scap_open(scap_open_args);
 
 				/* Wait until the `sys_exit` is loaded. */
+				log_info("Wait for the sys_exit tracepoint to be correctly attached!");
 				while(m_skel->bss->sys_exit_enabled == 0)
 				{
 					sleep(1);
 				}
+				log_info("sys_exit tracepoint correctly attached!");
 			}
 
 			/* Attach the `sys_exit` tracepoint after the scap-open. */

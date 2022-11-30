@@ -13,12 +13,12 @@ scap_open_path: "../../libs/build/libscap/examples/01-open/scap-open"
 old_probe_path: "../../libs/build/driver/bpf/probe.o"
 
 # Repeat the bench multiple times to increase the accuracy
-iterations: 2
+iterations: 1
 
 # These are the possible modes, you can enable just one of these (right now we support only this mode):
 # * SINGLE_SYSCALL
 # * REDIS
-mode: "REDIS"
+mode: "SINGLE_SYSCALL"
 
 # Directory where results will be saved
 results_dir: "../../results"
