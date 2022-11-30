@@ -96,8 +96,8 @@ int exit_point(struct sys_exit_args *ctx)
 }
 
 /* This program is used to check if the `scap-open` has already attached the `sys_exit` tracepoint. */
-SEC("fexit/tracepoint_probe_register")
-int BPF_PROG(probe_sys_exit_attach, struct tracepoint *tp, void *probe, void *data, long ret)
+SEC("fexit/tracepoint_add_func")
+int BPF_PROG(probe_sys_exit_attach, struct tracepoint *tp, struct tracepoint_func *func, int prio, bool warn, long ret)
 {
 	char tracepoint_target[8] = "sys_exit";
 	char tracepoint_name[8] = {0};
